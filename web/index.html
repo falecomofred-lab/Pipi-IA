@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F0A0E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pipi">
+<title>Pipi IA — Venure</title>
+<link rel="manifest" href="/manifest.json">
+
+<!-- O MESMO SISTEMA VISUAL DO BIGODE
+     Vidro liquido, a marca respirando e a chancela moram no venure.css,
+     que e UM arquivo so, servido pelas duas ferramentas. Consertar um
+     detalhe de estilo aqui conserta no Bigode tambem -- e o contrario
+     de manter dois projetos parecidos que vao divergindo devagar. -->
+<link rel="stylesheet" href="/venure.css">
+
+<style>
+/* ===================================================================
+   A PIPI E A MESMA CASA DO BIGODE, COM OUTRA TINTA
+   ===================================================================
+   Tudo o que e estrutura -- espacamento, tipografia, cantos, vidro,
+   cabecalho, cartoes -- e igual. O que muda e a cor de destaque e o
+   fundo, que puxa para ameixa em vez de azul-noite.
+
+   Assim voce reconhece qual das duas esta aberta pela cor periferica,
+   sem ler nada, e ao mesmo tempo nao precisa reaprender onde ficam as
+   coisas ao trocar de ferramenta.                                     */
+:root{
+  --ac:#E0849B;            /* rosa queimado */
+  --ac-rgb:224,132,155;
+  --ac2:#F7E2E8;
+
+  --bg:#0F0A0E; --sup:#171016; --sup2:#1E1520; --linha:#271B28; --linha2:#37273A;
+  --txt:#F4ECF1; --txt2:#BFAEBB; --mudo:#8A7686; --fraco:#5E4E5C;
+  --ok:#34D399; --alerta:#FBBF24; --erro:#F87171;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:
+    radial-gradient(74vw 56vh at 50% -8%, rgba(var(--ac-rgb),.16), transparent 64%),
+    linear-gradient(160deg,#0C080C,#1A1019);
+  color:var(--txt);
+  font:15px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;
+}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;color:inherit;background:none;border:0}
+
+input,select,textarea{
+  width:100%;background:rgba(0,0,0,.28);
+  border:1px solid var(--linha2);border-radius:11px;
+  color:var(--txt);padding:11px 12px;font-size:16px;outline:0;
+  transition:border-color .18s,box-shadow .18s;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--ac);
+  box-shadow:0 0 0 3px rgba(var(--ac-rgb),.16);
+}
+textarea{resize:vertical;min-height:112px;line-height:1.55}
+label{display:block;font-size:13px;font-weight:600;color:var(--txt2);margin-bottom:5px}
+.aj{display:block;color:var(--mudo);font-size:11.5px;line-height:1.45;margin-top:5px}
+
+/* ---------- cabecalho ---------- */
+.topo{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:11px;
+  padding:calc(10px + env(safe-area-inset-top)) 18px 10px;
+  border:0;border-bottom:1px solid var(--vidro-borda);border-radius:0;
+}
+.selo{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;overflow:hidden;
+  background:var(--ac);
+}
+.selo img{width:100%;height:100%;object-fit:cover;display:block}
+.marca{display:flex;flex-direction:column;line-height:1.1}
+.marca .ola{font-size:9px;letter-spacing:1.6px;color:var(--mudo);text-transform:uppercase}
+.marca b{font-size:15px;color:var(--ac2);font-weight:650}
+.estado{margin-left:auto;display:flex;align-items:center;gap:7px;
+        color:var(--mudo);font-size:11.5px}
+.ponto{width:8px;height:8px;border-radius:50%;background:var(--alerta)}
+.ponto.ok{background:var(--ok)}
+.ponto.ruim{background:var(--erro)}
+.sair{font-size:11.5px;color:var(--mudo);padding:5px 9px;border-radius:7px}
+.sair:hover{color:var(--txt);background:rgba(255,255,255,.06)}
+
+/* ---------- corpo ---------- */
+.rolagem{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.coluna{max-width:730px;margin:0 auto;padding:22px 18px 8px}
+
+.abertura{text-align:center;padding:6px 0 18px}
+.abertura img{width:min(34vw,170px);max-height:22dvh;object-fit:contain;
+  filter:drop-shadow(0 14px 30px rgba(0,0,0,.5))}
+h1{font-size:clamp(25px,5.4vw,36px);line-height:1.05;margin:10px 0 5px;
+   color:var(--ac2);font-weight:650}
+.abertura p{margin:0;color:var(--mudo);font-size:12.5px}
+
+.et{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--mudo);margin:16px 0 8px}
+.cartao{border-radius:17px;padding:17px;margin-bottom:13px}
+.campo{margin-bottom:14px}
+.par{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+.bt{
+  width:100%;min-height:50px;border-radius:13px;
+  background:linear-gradient(135deg,var(--ac),#C96A85);
+  color:#2B1119;font-weight:750;font-size:15.5px;
+  box-shadow:0 8px 24px rgba(var(--ac-rgb),.2);
+  transition:transform .12s,box-shadow .2s;
+}
+.bt:hover{box-shadow:0 12px 30px rgba(var(--ac-rgb),.3)}
+.bt:active{transform:translateY(1px)}
+.bt:disabled{opacity:.55;cursor:wait;transform:none}
+.bt.fraco{background:none;border:1px solid var(--linha2);color:var(--txt2);
+          box-shadow:none;min-height:42px;font-size:14px;font-weight:600}
+
+.resultado{margin-top:13px;overflow-wrap:anywhere}
+.resultado img{display:block;width:100%;height:auto;border-radius:15px;
+  box-shadow:0 16px 42px rgba(0,0,0,.45)}
+.resultado .ruim{color:var(--erro)}
+
+.vazio{color:var(--mudo);font-size:12.5px;padding:10px 0}
+.item{padding:11px 12px;border:1px solid var(--linha);border-radius:11px;
+      background:rgba(255,255,255,.03);margin-bottom:7px}
+.item b{display:block;color:var(--ac2);font-size:12.5px}
+.item span{display:block;color:var(--mudo);font-size:11.5px;margin-top:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- aviso do motor ---------- */
+.recado{
+  border-left:3px solid var(--alerta);border-radius:11px;
+  padding:12px 14px;margin-bottom:13px;font-size:12.5px;line-height:1.55;
+  color:var(--txt2);background:rgba(251,191,36,.07);
+}
+.recado b{color:var(--alerta);display:block;margin-bottom:4px}
+.recado code{background:rgba(0,0,0,.3);padding:1px 6px;border-radius:5px;
+  font-size:11.5px;color:var(--ac2)}
+
+/* ---------- entrar ---------- */
+.entrada{
+  position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:22px;
+  background:rgba(12,8,12,.86);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+}
+.entrada .caixa{width:min(380px,100%);border-radius:17px;padding:24px}
+.entrada .selo{width:46px;height:46px;margin:0 auto 12px}
+.entrada h2{text-align:center;font-size:19px;margin:0 0 4px;color:var(--ac2);font-weight:650}
+.entrada .sub{text-align:center;color:var(--mudo);font-size:12.5px;margin-bottom:18px}
+.entrada .erro{color:var(--erro);font-size:12.5px;min-height:18px;margin-top:9px;text-align:center}
+
+@media(max-width:620px){
+  .par{grid-template-columns:1fr}
+  .coluna{padding:16px 14px 8px}
+  .cartao{padding:14px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== ENTRAR ===================== -->
+<div class="entrada" id="entrada" style="display:none">
+  <div class="caixa vidro vidro-forte">
+    <div class="selo"><img src="/img/pipi_gata_transparente.png" alt=""
+         onerror="this.remove()"></div>
+    <h2>Pipi IA</h2>
+    <div class="sub" id="subEntrada">Entre com a sua conta do Bigode</div>
+    <div class="campo">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="username">
+    </div>
+    <div class="campo">
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" autocomplete="current-password">
+    </div>
+    <button class="bt" id="btEntrar" onclick="entrar()">Entrar</button>
+    <div class="erro" id="erroEntrada"></div>
+  </div>
+</div>
+
+<!-- ===================== CABECALHO ===================== -->
+<header class="topo vidro">
+  <div class="selo" id="seloTopo">
+    <img src="/img/pipi_gata_transparente.png" alt="" onerror="this.remove()">
+  </div>
+  <div class="marca">
+    <span class="ola">Venure apresenta</span>
+    <b>Pipi IA</b>
+  </div>
+  <div class="estado">
+    <span class="ponto" id="ponto"></span>
+    <span id="txtEstado">verificando</span>
+    <button class="sair" id="btSair" onclick="sair()" style="display:none">Sair</button>
+  </div>
+</header>
+
+<!-- ===================== CORPO ===================== -->
+<div class="rolagem">
+  <div class="coluna">
+
+    <div class="abertura">
+      <img src="/img/pipi_gata_transparente.png" alt="Pipi IA" onerror="this.remove()">
+      <h1>Estúdio visual</h1>
+      <p>Descreva o que você quer ver. A Pipi coordena o motor.</p>
+    </div>
+
+    <div id="recado"></div>
+
+    <div class="cartao vidro vidro-toque">
+      <div class="et">Criar imagem</div>
+
+      <div class="campo">
+        <label for="prompt">O que você quer criar?</label>
+        <textarea id="prompt" placeholder="Descreva a cena, a luz, o ângulo, o estilo…"></textarea>
+        <span class="aj">Quanto mais detalhe — luz, ângulo, estilo, cores — melhor o resultado.</span>
+      </div>
+
+      <div class="campo">
+        <label for="negativo">O que evitar <span class="aj" style="display:inline">(opcional)</span></label>
+        <input id="negativo" placeholder="baixa qualidade, texto ilegível, deformações">
+      </div>
+
+      <div class="par">
+        <div class="campo">
+          <label for="formato">Formato</label>
+          <select id="formato">
+            <option value="quadrado">Quadrado · 1024×1024</option>
+            <option value="retrato">Retrato · 832×1216</option>
+            <option value="paisagem">Paisagem · 1216×832</option>
+            <option value="story">Story · 768×1344</option>
+            <option value="capa">Capa · 1344×768</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="modelo">Motor</label>
+          <select id="modelo"><option value="">automático</option></select>
+        </div>
+      </div>
+
+      <div class="par">
+        <div class="campo">
+          <label for="passos">Passos</label>
+          <input id="passos" type="number" min="1" max="30" value="4">
+        </div>
+        <div class="campo">
+          <label for="semente">Semente</label>
+          <input id="semente" type="number" value="0">
+          <span class="aj">0 = diferente a cada vez</span>
+        </div>
+      </div>
+
+      <button class="bt" id="btCriar" onclick="gerar()">Criar imagem</button>
+
+      <!-- A marca respirando enquanto o motor trabalha. A classe
+           .pensando-linha e a animacao vem do venure.css. -->
+      <div class="pensando-linha" id="viva" style="display:none;margin-top:13px">
+        <span class="pt-marca pensando">
+          <img src="/img/pipi_gata_transparente.png" alt="" onerror="this.remove()">
+        </span>
+        <span class="pt-txt" id="vivaTxt">Coordenando o motor</span>
+        <span class="pt-seg" id="vivaSeg"></span>
+      </div>
+
+      <div class="resultado" id="resultado"></div>
+    </div>
+
+    <div class="cartao vidro">
+      <div class="et">Criações desta sessão</div>
+      <div id="historico"><div class="vazio">Nada ainda.</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="chancela">
+  <b>VENURE</b> · <a href="https://venure.com.br" target="_blank" rel="noopener">venure.com.br</a>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=t=>{const d=document.createElement('div');d.textContent=t??'';return d.innerHTML};
+const escA=t=>esc(t).replace(/"/g,'&quot;');
+
+/* ---------- entrar ---------- */
+async function conferirLogin(){
+  let d={};
+  try{ d=await(await fetch('/api/eu')).json(); }
+  catch(e){ return true; }          // servidor mudo: a tela principal avisa
+  if(d.exige && !d.logado){
+    $('entrada').style.display='grid';
+    if(d.motivo) $('subEntrada').textContent=d.motivo;
+    $('email').focus();
+    return false;
+  }
+  $('entrada').style.display='none';
+  if(d.exige) $('btSair').style.display='';
+  return true;
+}
+async function entrar(){
+  const b=$('btEntrar'); b.disabled=true; $('erroEntrada').textContent='';
+  try{
+    const r=await(await fetch('/api/entrar',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:$('email').value.trim(),senha:$('senha').value})})).json();
+    if(r.ok){ $('entrada').style.display='none'; $('btSair').style.display=''; carregar(); }
+    else $('erroEntrada').textContent=r.erro||'Não consegui entrar.';
+  }catch(e){ $('erroEntrada').textContent='Falha de conexão.'; }
+  b.disabled=false;
+}
+async function sair(){
+  try{ await fetch('/api/sair',{method:'POST'}); }catch(e){}
+  location.reload();
+}
+$('senha').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});
+
+/* ---------- estado do motor ---------- */
+async function carregar(){
+  try{
+    const d=await(await fetch('/api/imagens')).json();
+    const ms=d.modelos||[];
+    $('modelo').innerHTML='<option value="">automático</option>'+
+      ms.map(m=>'<option value="'+escA(m.arquivo||'')+'">'+
+        esc(m.nome||m.arquivo)+'</option>').join('');
+
+    /* Qual motor esta valendo. A ordem e a mesma que o servidor usa para
+       escolher -- se a tela dissesse outra coisa, voce leria "ComfyUI" e
+       a conta cairia na Modal. */
+    const modal=d.modal&&d.modal.configurado;
+    const hf=d.huggingface&&d.huggingface.configurado;
+    const ligado=modal||!!d.comfyui||hf;
+    const qual=modal?'Modal · FLUX schnell':(d.comfyui?'ComfyUI':(hf?'Hugging Face':''));
+    $('ponto').className='ponto'+(ligado?' ok':' ruim');
+    $('txtEstado').textContent=ligado?qual:'sem motor';
+
+    /* O aviso so aparece quando ha o que avisar. Barra amarela fixa que
+       nunca muda vira paisagem, e ai ninguem le quando importa. */
+    const faltando=(d.componentes&&d.componentes.faltando)||[];
+    if(!ligado){
+      $('recado').innerHTML='<div class="recado vidro"><b>Sem motor de imagem</b>'+
+        'A Pipi precisa de um ComfyUI com placa. No Colab, rode a célula '+
+        '<code>10</code> e depois a <code>8-C</code>; aqui no Windows, rode '+
+        '<code>python usar_desenhista_do_colab.py</code> e cole o endereço.</div>';
+    }else if(faltando.length){
+      $('recado').innerHTML='<div class="recado vidro"><b>Faltam peças do modelo</b>'+
+        'Não achei: '+esc(faltando.join(', '))+'. Um FLUX precisa do desenhista, '+
+        'do leitor de texto (T5 + clip_l) e do VAE — os três.</div>';
+    }else $('recado').innerHTML='';
+  }catch(e){
+    $('ponto').className='ponto ruim';
+    $('txtEstado').textContent='offline';
+  }
+}
+
+/* ---------- gerar ---------- */
+let relogio=null;
+function viva(ligar,txt){
+  $('viva').style.display=ligar?'':'none';
+  if(txt) $('vivaTxt').textContent=txt;
+  if(!ligar){ clearInterval(relogio); relogio=null; $('vivaSeg').textContent=''; return; }
+  if(!relogio){
+    const t0=Date.now();
+    relogio=setInterval(()=>{
+      const s=Math.round((Date.now()-t0)/1000);
+      $('vivaSeg').textContent=s>2?s+'s':'';
+    },500);
+  }
+}
+
+async function gerar(){
+  const prompt=$('prompt').value.trim();
+  if(!prompt){ viva(true,'Escreva uma descrição antes.'); setTimeout(()=>viva(false),2200); return; }
+  const b=$('btCriar'); b.disabled=true; $('resultado').innerHTML='';
+  viva(true,'Coordenando o motor');
+  try{
+    const r=await(await fetch('/api/imagens/job',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({descricao:prompt,modelo:$('modelo').value,
+        negativo:$('negativo').value,formato:$('formato').value,
+        passos:+$('passos').value||4,semente:+$('semente').value||0})})).json();
+
+    if(!r.job_id){
+      viva(false);
+      $('resultado').innerHTML='<div class="ruim">'+esc(r.erro||'Não consegui iniciar.')+'</div>';
+      return;
+    }
+    viva(true,'A primeira imagem demora — o modelo está subindo');
+
+    for(let i=0;i<240;i++){
+      await new Promise(x=>setTimeout(x,2000));
+      const j=await(await fetch('/api/imagens/job/'+encodeURIComponent(r.job_id))).json();
+      if(j.estado==='concluido'){
+        viva(false);
+        const u=String(j.resultado||'');
+        $('resultado').innerHTML=(/^\/|^https?:/.test(u))
+          ? '<img src="'+escA(u)+'" alt="Imagem criada">'
+          : '<div>'+esc(u)+'</div>';
+        registrar(prompt);
+        break;
+      }
+      if(j.estado==='erro'){
+        viva(false);
+        $('resultado').innerHTML='<div class="ruim">'+esc(j.erro||'Sem resposta')+'</div>';
+        break;
+      }
+      viva(true,'Motor: '+(j.estado||'trabalhando'));
+    }
+  }catch(e){
+    viva(false);
+    $('resultado').innerHTML='<div class="ruim">Falha de conexão: '+esc(String(e))+'</div>';
+  }
+  b.disabled=false;
+}
+
+/* ---------- historico ---------- */
+function pintarHistorico(h){
+  $('historico').innerHTML=h.length
+    ? h.map(x=>'<div class="item"><b>'+esc(x.quando)+'</b><span>'+esc(x.prompt)+'</span></div>').join('')
+    : '<div class="vazio">Nada ainda.</div>';
+}
+function registrar(prompt){
+  let h=[]; try{ h=JSON.parse(localStorage.getItem('pipi_historico')||'[]'); }catch(e){}
+  h.unshift({prompt,quando:new Date().toLocaleString('pt-BR')});
+  h=h.slice(0,20);
+  try{ localStorage.setItem('pipi_historico',JSON.stringify(h)); }catch(e){}
+  pintarHistorico(h);
+}
+try{ pintarHistorico(JSON.parse(localStorage.getItem('pipi_historico')||'[]')); }
+catch(e){ pintarHistorico([]); }
+
+/* ---------- partida ---------- */
+conferirLogin().then(ok=>{ if(ok) carregar(); });
+setInterval(()=>{ if($('entrada').style.display==='none') carregar(); },9000);
+</script>
+</body>
+</html>

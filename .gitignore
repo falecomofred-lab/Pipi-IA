@@ -1,0 +1,41 @@
+# O QUE NUNCA SOBE PARA O GITHUB  —  Pipi IA
+#
+# O modal.json e o mais perigoso daqui: ele guarda o TOKEN do seu
+# endpoint da Modal. Com ele na mao, qualquer pessoa manda desenhar na
+# sua conta ate o credito acabar.
+#
+# O motor_remoto.txt e menos grave -- e so um endereco de tunel, que
+# expira em horas. Mas enquanto vale, ele da acesso ao seu ComfyUI, que
+# nao tem senha nenhuma. Fica de fora tambem.
+
+# ---------- segredos ----------
+modal.json
+motor_remoto.txt
+.env
+*.env
+*.key
+*.pem
+*_token*
+*secret*
+
+# ---------- o que voce produziu ----------
+producao/
+Criativos/
+
+# ---------- pesado demais para o Git ----------
+*.gguf
+*.safetensors
+*.bin
+*.ckpt
+python/
+ComfyUI/
+
+# ---------- lixo de execucao ----------
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+*.db
+*.crdownload
+desktop.ini

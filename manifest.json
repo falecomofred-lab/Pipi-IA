@@ -1,0 +1,9 @@
+{
+  "name": "Pipi IA",
+  "short_name": "Pipi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#140a13",
+  "theme_color": "#190d18",
+  "icons": []
+}
