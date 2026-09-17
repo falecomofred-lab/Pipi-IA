@@ -117,7 +117,7 @@ class Desenhista:
         self.pipe.enable_model_cpu_offload()
 
     @modal.fastapi_endpoint(method="POST", docs=True)
-    def gerar(self, dados: dict):
+    def gerar(self, dados):
         import base64
         import torch
 
