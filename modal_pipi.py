@@ -93,7 +93,7 @@ app = modal.App(APP, image=imagem)
 @app.cls(
     gpu="L4",                      # 24 GB. Troque para "L40S" se precisar de folga.
     volumes={CACHE: volume},
-    secrets=[modal.Secret.from_name("pipi-token")],
+    secrets=[modal.Secret.from_name("pipi-token"), modal.Secret.from_name("huggingface-token")],
     timeout=600,
     # Mantem o container vivo 2 min apos o ultimo pedido: quem gera varias
     # imagens seguidas paga o aquecimento uma vez so.
