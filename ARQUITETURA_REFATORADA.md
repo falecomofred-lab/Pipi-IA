@@ -1,4 +1,4 @@
-# Pipi IA - Arquitetura Refatorada (100% Puro)
+# Pipi IA — Arquitetura Refatorada (100% Puro)
 
 ## O que mudou
 

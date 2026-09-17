@@ -160,7 +160,7 @@ def health() -> dict:
 
     return {
         'ok': True,
-        'servico': 'pipi',
+        'servico': 'pipi-ia',
         'estado': 'pronto' if pronto else 'sem_motor',
         'modal': modal_st,
         'comfyui': comfy_st,
@@ -292,7 +292,7 @@ def run_job(jid: str, prompt: str, payload: dict):
 
 def create_job(prompt: str, payload: dict) -> str:
     """Cria novo job de geração."""
-    jid = 'pipi_' + uuid.uuid4().hex[:12]
+    jid = 'pipi-ia_' + uuid.uuid4().hex[:12]
     with LOCK:
         JOBS[jid] = {
             'id': jid,
@@ -388,5 +388,8 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PIPI_PORT', '7300'))
-    print(f'\nPipi IA (Refatorado)\nhttp://127.0.0.1:{port}\n')
+    print(f'\n{"="*60}')
+    print(f'  Pipi IA — Servidor Refatorado')
+    print(f'  http://127.0.0.1:{port}')
+    print(f'{"="*60}\n')
     ThreadingHTTPServer(('0.0.0.0', port), Handler).serve_forever()
