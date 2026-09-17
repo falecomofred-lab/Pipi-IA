@@ -392,4 +392,9 @@ if __name__ == '__main__':
     print(f'  Pipi IA — Servidor Refatorado')
     print(f'  http://127.0.0.1:{port}')
     print(f'{"="*60}\n')
-    ThreadingHTTPServer(('0.0.0.0', port), Handler).serve_forever()
+    server = ThreadingHTTPServer(('0.0.0.0', port), Handler)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print('\n\nServidor encerrado com sucesso.\n')
+        server.shutdown()

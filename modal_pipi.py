@@ -122,11 +122,19 @@ class Desenhista:
         # descobrisse gastaria o seu credito -- e ele e limitado a $30.
         esperado = (os.environ.get("PIPI_TOKEN") or "").strip()
         recebido = str(dados.get("token") or "").strip()
+
         if not esperado:
             return {"ok": False,
-                    "erro": "O segredo pipi-token nao foi configurado na Modal."}
+                    "erro": "O segredo pipi-token nao foi configurado na Modal.",
+                    "debug_esperado": "<nao-configurado>",
+                    "debug_recebido": recebido[:3] + "***" if recebido else "<vazio>"}
+
         if recebido != esperado:
-            return {"ok": False, "erro": "Token invalido."}
+            return {"ok": False,
+                    "erro": "Token invalido.",
+                    "debug_esperado_len": len(esperado),
+                    "debug_recebido_len": len(recebido),
+                    "debug_match": recebido == esperado}
 
         prompt = str(dados.get("prompt") or dados.get("descricao") or "").strip()
         if not prompt:
