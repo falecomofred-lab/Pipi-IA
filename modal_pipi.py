@@ -104,89 +104,72 @@ class Desenhista:
     @modal.enter()
     def carregar(self):
         """Roda UMA vez por container, nao a cada pedido."""
-        import torch
-        from diffusers import FluxPipeline
+        try:
+            import torch
+            from diffusers import FluxPipeline
 
-        token_configurado = (os.environ.get("PIPI_TOKEN") or "").strip()
-        print(f"[MODAL] PIPI_TOKEN configurado: {bool(token_configurado)}")
-        print(f"[MODAL] Comprimento do token: {len(token_configurado)}")
-
-        self.pipe = FluxPipeline.from_pretrained(
-            MODELO, torch_dtype=torch.bfloat16, cache_dir=CACHE)
-        # Ver o cabecalho: cabe na L4 com folga, custa alguns segundos.
-        self.pipe.enable_model_cpu_offload()
+            print("[MODAL] Carregando FLUX.1-schnell...")
+            self.pipe = FluxPipeline.from_pretrained(
+                MODELO, torch_dtype=torch.bfloat16, cache_dir=CACHE)
+            self.pipe.enable_model_cpu_offload()
+            print("[MODAL] Modelo carregado com sucesso")
+        except Exception as e:
+            print(f"[MODAL] ERRO ao carregar modelo: {e}")
+            raise
 
     @modal.fastapi_endpoint(method="POST", docs=True)
     def gerar(self, dados):
-        import base64
-        import torch
+        try:
+            import base64
+            import torch
 
-        # ---- quem esta pedindo? --------------------------------------
-        # O endereco da Modal e publico. Sem token, qualquer um que o
-        # descobrisse gastaria o seu credito -- e ele e limitado a $30.
-        esperado = (os.environ.get("PIPI_TOKEN") or "").strip()
-        recebido = str(dados.get("token") or "").strip()
+            esperado = (os.environ.get("PIPI_TOKEN") or "").strip()
+            recebido = str(dados.get("token") or "").strip()
 
-        print(f"[MODAL] Validação de token:")
-        print(f"[MODAL]   Esperado: {len(esperado)} chars, vazio={not esperado}")
-        print(f"[MODAL]   Recebido: {len(recebido)} chars, vazio={not recebido}")
-        print(f"[MODAL]   Match: {recebido == esperado}")
+            if not esperado:
+                return {"ok": False, "erro": "Token nao configurado"}
+            if recebido != esperado:
+                return {"ok": False, "erro": "Token invalido"}
 
-        if not esperado:
-            return {"ok": False,
-                    "erro": "O segredo pipi-token nao foi configurado na Modal."}
+            prompt = str(dados.get("prompt") or "").strip()
+            if not prompt:
+                return {"ok": False, "erro": "Prompt obrigatorio"}
 
-        if recebido != esperado:
-            return {"ok": False,
-                    "erro": "Token invalido."}
+            FORMATOS = {
+                "quadrado": (1024, 1024), "retrato": (832, 1216),
+                "paisagem": (1216, 832), "story": (768, 1344),
+                "capa": (1344, 768),
+            }
+            largura, altura = FORMATOS.get(
+                str(dados.get("formato") or "quadrado"), (1024, 1024))
 
-        prompt = str(dados.get("prompt") or dados.get("descricao") or "").strip()
-        if not prompt:
-            return {"ok": False, "erro": "O campo 'prompt' e obrigatorio."}
+            passos = max(1, min(8, int(dados.get("passos") or 4)))
+            semente = int(dados.get("semente") or 0)
+            gerador = (torch.Generator("cpu").manual_seed(semente) if semente else None)
 
-        # ---- formato --------------------------------------------------
-        # Os mesmos nomes que a tela da Pipi usa, para nao haver traducao
-        # no meio do caminho.
-        FORMATOS = {
-            "quadrado": (1024, 1024), "retrato": (832, 1216),
-            "paisagem": (1216, 832), "story": (768, 1344),
-            "capa": (1344, 768),
-        }
-        largura, altura = FORMATOS.get(
-            str(dados.get("formato") or "quadrado"), (1024, 1024))
+            comeco = time.time()
+            img = self.pipe(
+                prompt,
+                width=largura, height=altura,
+                num_inference_steps=passos,
+                guidance_scale=0.0,
+                generator=gerador,
+                max_sequence_length=256,
+            ).images[0]
 
-        # O schnell e destilado: acima de ~4 passos nao melhora, so gasta
-        # segundos de GPU. O teto de 8 existe para proteger o credito de
-        # um valor digitado sem querer.
-        passos = max(1, min(8, int(dados.get("passos") or 4)))
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
 
-        semente = int(dados.get("semente") or 0)
-        gerador = (torch.Generator("cpu").manual_seed(semente)
-                   if semente else None)
-
-        comeco = time.time()
-        img = self.pipe(
-            prompt,
-            width=largura, height=altura,
-            num_inference_steps=passos,
-            # O schnell foi destilado SEM orientacao: guidance != 0 piora.
-            guidance_scale=0.0,
-            generator=gerador,
-            max_sequence_length=256,
-        ).images[0]
-
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-
-        return {
-            "ok": True,
-            # base64 em vez de URL: nao precisa de bucket, nao expira e
-            # nao deixa a imagem publica em lugar nenhum.
-            "imagem_b64": base64.b64encode(buf.getvalue()).decode(),
-            "formato": "png",
-            "largura": largura, "altura": altura,
-            "passos": passos, "semente": semente,
-            "segundos": round(time.time() - comeco, 1),
-            "modelo": MODELO,
-            "licenca": "Apache-2.0 (uso comercial liberado)",
-        }
+            return {
+                "ok": True,
+                "imagem_b64": base64.b64encode(buf.getvalue()).decode(),
+                "formato": "png",
+                "largura": largura, "altura": altura,
+                "passos": passos, "semente": semente,
+                "segundos": round(time.time() - comeco, 1),
+                "modelo": MODELO,
+                "licenca": "Apache-2.0 (uso comercial liberado)",
+            }
+        except Exception as e:
+            print(f"[MODAL] ERRO em gerar(): {e}")
+            return {"ok": False, "erro": f"Erro interno: {str(e)[:100]}"}
