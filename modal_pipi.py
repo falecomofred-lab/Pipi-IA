@@ -112,6 +112,17 @@ class Desenhista:
         # Ver o cabecalho: cabe na L4 com folga, custa alguns segundos.
         self.pipe.enable_model_cpu_offload()
 
+    @modal.fastapi_endpoint(method="GET", docs=True)
+    def debug(self):
+        """Endpoint de debug — mostra qual token é esperado."""
+        esperado = (os.environ.get("PIPI_TOKEN") or "").strip()
+        return {
+            "ok": True,
+            "debug_token_esperado_len": len(esperado),
+            "debug_token_esperado_vazio": not esperado,
+            "debug_env_keys": sorted([k for k in os.environ.keys() if "TOKEN" in k.upper() or "PIPI" in k.upper()]),
+        }
+
     @modal.fastapi_endpoint(method="POST", docs=True)
     def gerar(self, dados: dict):
         import base64
