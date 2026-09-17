@@ -107,21 +107,14 @@ class Desenhista:
         import torch
         from diffusers import FluxPipeline
 
+        token_configurado = (os.environ.get("PIPI_TOKEN") or "").strip()
+        print(f"[MODAL] PIPI_TOKEN configurado: {bool(token_configurado)}")
+        print(f"[MODAL] Comprimento do token: {len(token_configurado)}")
+
         self.pipe = FluxPipeline.from_pretrained(
             MODELO, torch_dtype=torch.bfloat16, cache_dir=CACHE)
         # Ver o cabecalho: cabe na L4 com folga, custa alguns segundos.
         self.pipe.enable_model_cpu_offload()
-
-    @modal.fastapi_endpoint(method="GET", docs=True)
-    def debug(self):
-        """Endpoint de debug — mostra qual token é esperado."""
-        esperado = (os.environ.get("PIPI_TOKEN") or "").strip()
-        return {
-            "ok": True,
-            "debug_token_esperado_len": len(esperado),
-            "debug_token_esperado_vazio": not esperado,
-            "debug_env_keys": sorted([k for k in os.environ.keys() if "TOKEN" in k.upper() or "PIPI" in k.upper()]),
-        }
 
     @modal.fastapi_endpoint(method="POST", docs=True)
     def gerar(self, dados: dict):
@@ -134,18 +127,18 @@ class Desenhista:
         esperado = (os.environ.get("PIPI_TOKEN") or "").strip()
         recebido = str(dados.get("token") or "").strip()
 
+        print(f"[MODAL] Validação de token:")
+        print(f"[MODAL]   Esperado: {len(esperado)} chars, vazio={not esperado}")
+        print(f"[MODAL]   Recebido: {len(recebido)} chars, vazio={not recebido}")
+        print(f"[MODAL]   Match: {recebido == esperado}")
+
         if not esperado:
             return {"ok": False,
-                    "erro": "O segredo pipi-token nao foi configurado na Modal.",
-                    "debug_esperado": "<nao-configurado>",
-                    "debug_recebido": recebido[:3] + "***" if recebido else "<vazio>"}
+                    "erro": "O segredo pipi-token nao foi configurado na Modal."}
 
         if recebido != esperado:
             return {"ok": False,
-                    "erro": "Token invalido.",
-                    "debug_esperado_len": len(esperado),
-                    "debug_recebido_len": len(recebido),
-                    "debug_match": recebido == esperado}
+                    "erro": "Token invalido."}
 
         prompt = str(dados.get("prompt") or dados.get("descricao") or "").strip()
         if not prompt:
