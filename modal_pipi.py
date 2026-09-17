@@ -107,14 +107,29 @@ class Desenhista:
         try:
             import torch
             from diffusers import FluxPipeline
+            import subprocess
+
+            print("[MODAL] ===== VERIFICAÇÕES INICIAIS =====")
+
+            # Verificar HF_TOKEN
+            hf_token = os.environ.get("HF_TOKEN", "").strip()
+            print(f"[MODAL] HF_TOKEN configurado: {bool(hf_token)}")
+            if hf_token:
+                print(f"[MODAL] HF_TOKEN length: {len(hf_token)}")
+
+            # Verificar PIPI_TOKEN
+            pipi_token = os.environ.get("PIPI_TOKEN", "").strip()
+            print(f"[MODAL] PIPI_TOKEN configurado: {bool(pipi_token)}")
 
             print("[MODAL] Carregando FLUX.1-schnell...")
             self.pipe = FluxPipeline.from_pretrained(
                 MODELO, torch_dtype=torch.bfloat16, cache_dir=CACHE)
             self.pipe.enable_model_cpu_offload()
-            print("[MODAL] Modelo carregado com sucesso")
+            print("[MODAL] ✓ Modelo carregado com sucesso!")
         except Exception as e:
-            print(f"[MODAL] ERRO ao carregar modelo: {e}")
+            print(f"[MODAL] ✗ ERRO FATAL: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
             raise
 
     @modal.fastapi_endpoint(method="POST", docs=True)
