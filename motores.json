@@ -1,0 +1,35 @@
+[
+  {
+    "id": "flux-schnell",
+    "nome": "FLUX.1 Schnell",
+    "familia": "FLUX",
+    "arquivo": "flux1-schnell.safetensors",
+    "licenca": "Apache-2.0",
+    "vram": "recomendado GPU com 12 GB ou mais",
+    "fonte": "https://huggingface.co/black-forest-labs/FLUX.1-schnell",
+    "download": "https://huggingface.co/black-forest-labs/FLUX.1-schnell/tree/main",
+    "observacao": "12B; 1–4 passos; requer aceitar condições de acesso no Hugging Face."
+  },
+  {
+    "id": "sdxl-base",
+    "nome": "Stable Diffusion XL Base 1.0",
+    "familia": "SDXL",
+    "arquivo": "sd_xl_base_1.0.safetensors",
+    "licenca": "OpenRAIL++",
+    "vram": "recomendado GPU com 8–12 GB",
+    "fonte": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+    "download": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main",
+    "observacao": "Base standalone; o refiner é opcional e aumenta consumo."
+  },
+  {
+    "id": "sdxl-refiner",
+    "nome": "Stable Diffusion XL Refiner 1.0",
+    "familia": "SDXL",
+    "arquivo": "sd_xl_refiner_1.0.safetensors",
+    "licenca": "OpenRAIL++",
+    "vram": "usar junto do SDXL Base",
+    "fonte": "https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0",
+    "download": "https://huggingface.co/stabilityai/stable-diffusion-xl-refiner-1.0/tree/main",
+    "observacao": "Refinamento opcional para pipeline em duas etapas."
+  }
+]

@@ -1,0 +1,57 @@
+# O QUE NUNCA SOBE PARA O GITHUB  —  Pipi IA
+#
+# Repositorio: github.com/falecomofred-lab/Pipi-IA  (PRIVADO desde 17/09)
+#
+# POR QUE ESTE REPOSITORIO FOI REFEITO DO ZERO EM 17/09/2026
+#   O anterior tinha historico, e historico do Git guarda tudo: apagar um
+#   arquivo hoje nao apaga o que ele continha nos commits antigos. Como por
+#   aqui ja passou token da Modal, a unica limpeza confiavel era apagar o
+#   repositorio e comecar limpo.
+#
+# OS TRES ARQUIVOS PERIGOSOS DESTA PASTA
+#   modal.json      o token do seu endpoint da Modal. Com ele na mao,
+#                   qualquer pessoa desenha na sua conta ate o credito acabar.
+#   ponte.txt       o segredo que o Bigode usa para pedir imagem a Pipi. Quem
+#                   tiver o arquivo manda a Pipi trabalhar.
+#   motor_remoto.txt  endereco de tunel. Expira em horas, mas enquanto vale
+#                   da acesso direto, e sem senha, ao motor.
+
+# ---------- segredos ----------
+modal.json
+motor_remoto.txt
+ponte.txt
+usuarios.json
+config.json
+.env
+*.env
+*.key
+*.pem
+*_token*
+*secret*
+
+# ---------- o que voce produziu ----------
+# As imagens sao suas, nao do programa. Alem disso pesam, e o repositorio
+# cresceria alguns MB por dia sem nenhum ganho para quem clonar.
+producao/
+Criativos/
+
+# ---------- pesado demais para o Git ----------
+*.gguf
+*.safetensors
+*.bin
+*.ckpt
+python/
+ComfyUI/
+
+# ---------- lixo de execucao ----------
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.log
+*.db
+*.crdownload
+_quarentena-*/
+desktop.ini
+Thumbs.db
+.DS_Store

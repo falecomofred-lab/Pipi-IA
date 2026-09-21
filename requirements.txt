@@ -1,0 +1,13 @@
+# PIPI IA — o que instalar NO SEU WINDOWS
+#
+#   python -m pip install -r requirements.txt
+#
+# A lista e curta de proposito. A Pipi nao carrega modelo nenhum aqui: o
+# desenho acontece na Modal, numa L40S. Torch, diffusers, transformers e
+# companhia sao instalados LA, na imagem do modal_pipi.py -- e e por isso
+# que a Pipi abre em segundos numa maquina sem placa.
+#
+# O proprio servidor da tela usa so a biblioteca padrao do Python.
+
+# Publicar e falar com a Modal.
+modal>=1.5

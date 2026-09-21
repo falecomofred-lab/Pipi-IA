@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0F0A0E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pipi">
+<title>Pipi IA</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="/icone-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+<!-- O MESMO SISTEMA VISUAL DO BIGODE
+     Vidro liquido, a marca respirando e a chancela moram no venure.css,
+     que e UM arquivo so, servido pelas duas ferramentas. Consertar um
+     detalhe de estilo aqui conserta no Bigode tambem. -->
+<link rel="stylesheet" href="/venure.css">
+<!-- A captacao de voz, a mesma do Bigode. Vem antes do script da pagina
+     para o `window.Voz` ja existir quando ele rodar. -->
+<script src="/voz.js"></script>
+
+<style>
+/* ===================================================================
+   A PIPI E A MESMA CASA DO BIGODE, COM OUTRA TINTA
+   ===================================================================
+   Estrutura igual -- espacamento, tipografia, cantos, vidro, cabecalho,
+   cartoes. Muda a cor de destaque e o fundo, que puxa para ameixa.
+   Voce reconhece qual das duas esta aberta pela cor, sem ler nada.      */
+:root{
+  --ac:#E0849B;            /* rosa queimado */
+  --ac-rgb:224,132,155;
+  --ac2:#F7E2E8;
+
+  --bg:#0F0A0E; --sup:#171016; --sup2:#1E1520; --linha:#271B28; --linha2:#37273A;
+  --txt:#F4ECF1; --txt2:#BFAEBB; --mudo:#8A7686; --fraco:#5E4E5C;
+  --ok:#34D399; --alerta:#FBBF24; --erro:#F87171;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:
+    radial-gradient(74vw 56vh at 50% -8%, rgba(var(--ac-rgb),.16), transparent 64%),
+    linear-gradient(160deg,#0C080C,#1A1019);
+  color:var(--txt);
+  font:15px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  display:flex;flex-direction:column;
+}
+
+/* ── O FUNDO POR TRÁS DO VIDRO ─────────────────────────────── (18/09) ──
+   O mesmo de duas camadas do Bigode, na paleta rosa. As duas ferramentas
+   passam a ter a mesma textura e continuam reconhecíveis pela cor — que é
+   a regra desta casa desde o começo: mesma família, irmãs diferentes.
+
+   1. halos de cor, imóveis — dão profundidade para o vidro desfocar
+   2. uma malha fina de 40px, que sugere circuito sem virar papel de
+      parede quadriculado
+
+   Tudo estático. Fundo animado atrás de texto é a diferença entre uma
+   ferramenta e uma vitrine — e aqui a pessoa fica olhando imagem, que é
+   o que tem de se mexer na tela.
+
+   Os valores vieram do Bigode sem arredondamento: 40px de malha, .045 de
+   opacidade na linha, .4 na camada, e a mesma máscara radial. Mudou só o
+   matiz. Copiar a medida e mexer só na cor é o que mantém as duas
+   parecidas de verdade — ajustar "no olho" é como elas divergem. */
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(58vw 48vw at 12% -8%,  rgba(224,132,155,.11), transparent 62%),
+    radial-gradient(52vw 44vw at 92% 108%, rgba(199,110,150,.09), transparent 60%),
+    radial-gradient(40vw 40vw at 78% 12%,  rgba(150,110,180,.05), transparent 65%)}
+body::after{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  opacity:.4;
+  background-image:
+    linear-gradient(rgba(224,132,155,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(224,132,155,.045) 1px, transparent 1px);
+  background-size:40px 40px;
+  /* apaga nas bordas para a malha não brigar com o conteúdo no meio */
+  mask-image:radial-gradient(115% 95% at 50% 0%, #000 20%, transparent 78%);
+  -webkit-mask-image:radial-gradient(115% 95% at 50% 0%, #000 20%, transparent 78%)}
+/* Sem esta linha o conteúdo fica DEBAIXO das duas camadas e a página
+   inteira parece coberta por um véu. As camadas são `position:fixed`, que
+   cria contexto de empilhamento próprio: não basta elas terem z-index 0,
+   o conteúdo precisa dizer que está acima. */
+body>*{position:relative;z-index:1}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;color:inherit;background:none;border:0}
+
+input,select,textarea{
+  width:100%;background:rgba(0,0,0,.28);
+  border:1px solid var(--linha2);border-radius:11px;
+  color:var(--txt);padding:11px 12px;font-size:16px;outline:0;
+  transition:border-color .18s,box-shadow .18s;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:var(--ac);
+  box-shadow:0 0 0 3px rgba(var(--ac-rgb),.16);
+}
+textarea{resize:vertical;min-height:120px;line-height:1.55}
+label{display:block;font-size:13px;font-weight:600;color:var(--txt2);margin-bottom:5px}
+.aj{display:block;color:var(--mudo);font-size:11.5px;line-height:1.45;margin-top:5px}
+
+/* ---------- cabecalho ---------- */
+.topo{
+  position:sticky;top:0;z-index:40;
+  display:flex;align-items:center;gap:11px;
+  padding:calc(10px + env(safe-area-inset-top)) 18px 10px;
+  border:0;border-bottom:1px solid var(--vidro-borda);border-radius:0;
+}
+.selo{
+  width:30px;height:30px;border-radius:50%;flex-shrink:0;overflow:hidden;
+  background:var(--ac);
+}
+.selo img{width:100%;height:100%;object-fit:cover;display:block}
+.marca b{font-size:16px;color:var(--ac2);font-weight:650;letter-spacing:.2px}
+.estado{margin-left:auto;display:flex;align-items:center;gap:7px;
+        color:var(--mudo);font-size:11.5px}
+.ponto{width:8px;height:8px;border-radius:50%;background:var(--alerta);flex-shrink:0}
+.ponto.ok{background:var(--ok)}
+.ponto.ruim{background:var(--erro)}
+.ponto.trabalhando{background:var(--ac);animation:pisca 1.1s ease-in-out infinite}
+@keyframes pisca{0%,100%{opacity:1}50%{opacity:.25}}
+.sair{font-size:11.5px;color:var(--mudo);padding:5px 9px;border-radius:7px}
+.sair:hover{color:var(--txt);background:rgba(255,255,255,.06)}
+
+/* ---------- corpo ---------- */
+.rolagem{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.coluna{max-width:730px;margin:0 auto;padding:20px 18px 8px}
+
+/* ---------- abertura: a Pipi ---------- */
+.abertura{text-align:center;padding:6px 0 18px}
+.abertura img{width:min(34vw,170px);max-height:22dvh;object-fit:contain;
+  filter:drop-shadow(0 14px 30px rgba(0,0,0,.5))}
+h1{font-size:clamp(25px,5.4vw,36px);line-height:1.05;margin:10px 0 5px;
+   color:var(--ac2);font-weight:650}
+.abertura p{margin:0;color:var(--mudo);font-size:12.5px}
+
+.et{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--mudo);margin:16px 0 8px}
+.cartao{border-radius:17px;padding:17px;margin-bottom:13px}
+.campo{margin-bottom:14px}
+.par{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+
+/* ---------- painel: o que esta ligado ---------- */
+.painel{border-radius:17px;padding:15px 17px;margin-bottom:13px}
+.painel .linha{
+  display:flex;align-items:baseline;gap:10px;
+  padding:7px 0;border-bottom:1px solid var(--linha);
+}
+.painel .linha:last-child{border-bottom:0}
+.painel .rot{
+  flex:0 0 96px;font-size:10.5px;font-weight:700;letter-spacing:1.1px;
+  text-transform:uppercase;color:var(--mudo);
+}
+.painel .val{flex:1;font-size:13px;color:var(--txt);overflow-wrap:anywhere}
+.painel .val small{display:block;color:var(--mudo);font-size:11.5px;margin-top:2px}
+.painel .val .selo-lic{
+  display:inline-block;margin-top:4px;font-size:10.5px;font-weight:700;
+  color:var(--ok);background:rgba(52,211,153,.1);
+  border:1px solid rgba(52,211,153,.25);border-radius:6px;padding:2px 7px;
+}
+.barra{height:5px;border-radius:3px;background:rgba(255,255,255,.07);
+       margin-top:6px;overflow:hidden}
+.barra i{display:block;height:100%;border-radius:3px;
+         background:linear-gradient(90deg,var(--ac),#C96A85)}
+.barra.apertado i{background:linear-gradient(90deg,var(--alerta),var(--erro))}
+
+/* O que roda sem voce fazer nada. Texto curto de proposito: lista longa
+   de "automatico" ninguem le, e ai deixa de ser informacao.            */
+.auto{margin:11px 0 0;padding:0;list-style:none}
+.auto li{
+  position:relative;padding:3px 0 3px 19px;
+  color:var(--txt2);font-size:12px;line-height:1.5;
+}
+.auto li::before{
+  content:'';position:absolute;left:4px;top:11px;
+  width:5px;height:5px;border-radius:50%;background:var(--ac);opacity:.7;
+}
+
+.bt{
+  width:100%;min-height:50px;border-radius:13px;
+  background:linear-gradient(135deg,var(--ac),#C96A85);
+  color:#2B1119;font-weight:750;font-size:15.5px;
+  box-shadow:0 8px 24px rgba(var(--ac-rgb),.2);
+  transition:transform .12s,box-shadow .2s;
+}
+.bt:hover{box-shadow:0 12px 30px rgba(var(--ac-rgb),.3)}
+.bt:active{transform:translateY(1px)}
+.bt:disabled{opacity:.55;cursor:wait;transform:none}
+
+.resultado{margin-top:13px;overflow-wrap:anywhere}
+.resultado img{display:block;width:100%;height:auto;border-radius:15px;
+  box-shadow:0 16px 42px rgba(0,0,0,.45)}
+.resultado .ruim{color:var(--erro);font-size:13px;line-height:1.55}
+.ficha{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:9px;
+       color:var(--mudo);font-size:11.5px}
+
+/* ---------- voz ---------- */
+.linhaVoz{display:flex;align-items:flex-start;gap:10px;margin-top:7px}
+.mic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;
+     flex-shrink:0;color:var(--mudo);border:1px solid var(--linha2);
+     background:rgba(0,0,0,.2);transition:.15s}
+.mic:hover{color:var(--txt);border-color:var(--ac)}
+.mic.gravando{color:var(--erro);border-color:rgba(248,113,113,.5);
+              background:rgba(248,113,113,.1);
+              animation:pulsarMic 1.4s ease-in-out infinite}
+.mic.processando{color:var(--ac);border-color:var(--ac)}
+@keyframes pulsarMic{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,.35)}
+                     70%{box-shadow:0 0 0 7px rgba(248,113,113,0)}}
+.ouvindo{display:flex;align-items:center;gap:9px;margin-top:9px;
+  padding:9px 12px;border-radius:11px;font-size:12.5px;color:var(--txt2);
+  border:1px solid var(--linha2);background:rgba(var(--ac-rgb),.06)}
+.onda{display:flex;align-items:center;gap:2.5px;height:14px;flex-shrink:0}
+.onda i{width:2.5px;border-radius:2px;background:var(--ac);
+        animation:onda 1s ease-in-out infinite}
+.onda i:nth-child(2){animation-delay:.14s}
+.onda i:nth-child(3){animation-delay:.28s}
+.onda i:nth-child(4){animation-delay:.42s}
+@keyframes onda{0%,100%{height:4px}50%{height:14px}}
+
+.rodaFinal{display:flex;align-items:center;gap:10px;margin-top:6px;
+  font-size:11.5px;color:var(--mudo);flex-wrap:wrap}
+.rodaFinal button{color:var(--ac2);font-size:11.5px;margin-left:auto}
+.rodaFinal button:hover{text-decoration:underline}
+.rodaFinal .apertado{color:var(--alerta)}
+.rodaFinal .estourou{color:var(--erro);font-weight:600}
+
+/* ---------- mosaico das criações ----------
+   TAMANHO DE ICONE GRANDE DO WINDOWS                       (17/09)
+   96px e a medida exata do "Icones grandes" do Explorador. E o tamanho
+   em que voce reconhece a imagem de relance sem ela tomar a pagina.
+
+   Antes ficava enorme, e nao era o CSS: o <div> tinha id="mosaico" mas
+   nao a CLASSE. Sem classe, nada disto aqui pegava, cada tijolo virava
+   um bloco de largura inteira e a pagina rolava sem fim. Seletor que nao
+   casa com nada nao da erro -- so nao faz efeito, que e pior.
+
+   `auto-fill,96px` + `justify-content:start` mantem o quadrado em 96px
+   sempre. Com `1fr` eles esticariam para preencher a linha, e numa tela
+   larga voltaria o problema de origem.                                  */
+.mosaico{display:grid;grid-template-columns:repeat(auto-fill,96px);
+         gap:8px;margin-top:4px;justify-content:start}
+.tijolo{position:relative;width:96px;height:96px;border-radius:9px;
+        overflow:hidden;border:1px solid var(--linha);
+        background:rgba(0,0,0,.25)}
+.tijolo img{width:100%;height:100%;object-fit:cover;display:block;
+            transition:transform .25s}
+.tijolo:hover img{transform:scale(1.05)}
+.tijolo .lupa{position:absolute;inset:0;border:0;background:none;cursor:zoom-in}
+.tijolo .apagar{
+  position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:8px;
+  display:grid;place-items:center;color:#fff;font-size:15px;line-height:1;
+  background:rgba(8,6,9,.62);border:1px solid rgba(255,255,255,.14);
+  opacity:0;transition:.15s;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+}
+.tijolo:hover .apagar,.tijolo:focus-within .apagar{opacity:1}
+.tijolo .apagar:hover{background:var(--erro);color:#2B0B0B;border-color:transparent}
+.tijolo .quando{
+  position:absolute;left:0;right:0;bottom:0;padding:14px 7px 5px;
+  font-size:10px;color:#F4ECF1;text-align:center;
+  background:linear-gradient(transparent,rgba(8,6,9,.8));
+  opacity:0;transition:.15s;pointer-events:none;
+}
+.tijolo:hover .quando{opacity:1}
+/* Em toque nao existe hover: o botao fica sempre visivel. */
+@media(hover:none){
+  .tijolo .apagar{opacity:1}
+}
+.barraMosaico{display:flex;align-items:center;gap:10px;margin-top:11px;
+  font-size:11.5px;color:var(--mudo);flex-wrap:wrap}
+.barraMosaico a,.barraMosaico button{color:var(--ac2);font-size:11.5px}
+.barraMosaico a:hover,.barraMosaico button:hover{text-decoration:underline}
+.lupaVeu{position:fixed;inset:0;z-index:90;display:grid;place-items:center;
+  padding:22px;background:rgba(8,6,9,.9);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);cursor:zoom-out}
+.lupaVeu img{max-width:100%;max-height:100%;border-radius:13px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6)}
+
+.vazio{color:var(--mudo);font-size:12.5px;padding:10px 0}
+.item{padding:11px 12px;border:1px solid var(--linha);border-radius:11px;
+      background:rgba(255,255,255,.03);margin-bottom:7px}
+.item b{display:block;color:var(--ac2);font-size:12.5px}
+.item span{display:block;color:var(--mudo);font-size:11.5px;margin-top:3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- recado ---------- */
+.recado{
+  border-left:3px solid var(--alerta);border-radius:11px;
+  padding:12px 14px;margin-bottom:13px;font-size:12.5px;line-height:1.6;
+  color:var(--txt2);background:rgba(251,191,36,.07);
+}
+.recado b{color:var(--alerta);display:block;margin-bottom:4px}
+.recado code{background:rgba(0,0,0,.3);padding:1px 6px;border-radius:5px;
+  font-size:11.5px;color:var(--ac2)}
+
+/* ---------- entrar ---------- */
+.entrada{
+  position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:22px;
+  background:rgba(12,8,12,.86);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+}
+.entrada .caixa{width:min(380px,100%);border-radius:17px;padding:24px}
+.entrada .selo{width:46px;height:46px;margin:0 auto 12px}
+.entrada h2{text-align:center;font-size:19px;margin:0 0 4px;color:var(--ac2);font-weight:650}
+.entrada .sub{text-align:center;color:var(--mudo);font-size:12.5px;margin-bottom:18px}
+.entrada .erro{color:var(--erro);font-size:12.5px;min-height:18px;margin-top:9px;text-align:center}
+
+/* ---------- rodape ---------- */
+.rodape{
+  text-align:center;padding:14px 18px calc(14px + env(safe-area-inset-bottom));
+  border-top:1px solid var(--linha);
+  color:var(--mudo);font-size:11.5px;line-height:1.7;
+}
+.rodape b{color:var(--txt2);letter-spacing:1.6px;font-weight:700}
+.rodape a{color:var(--ac2);text-decoration:none}
+.rodape a:hover{text-decoration:underline}
+.rodape .lema{display:block;color:var(--fraco);font-size:10.5px;
+  letter-spacing:.9px;text-transform:uppercase;margin-top:2px}
+.rodape .direitos{display:block;margin-top:7px;color:#4A3F48;font-size:10px;
+  line-height:1.5;max-width:460px;margin-left:auto;margin-right:auto}
+
+@media(max-width:620px){
+  .par{grid-template-columns:1fr}
+  .coluna{padding:15px 14px 8px}
+  .cartao,.painel{padding:14px}
+  .painel .rot{flex-basis:78px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== ENTRAR ===================== -->
+<div class="entrada" id="entrada" style="display:none">
+  <div class="caixa vidro vidro-forte">
+    <div class="selo"><img src="/img/pipi_gata_transparente.png" alt=""
+         onerror="this.remove()"></div>
+    <h2>Pipi IA</h2>
+    <div class="sub" id="subEntrada">Entre com a sua conta do Bigode</div>
+    <div class="campo">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="username">
+    </div>
+    <div class="campo">
+      <label for="senha">Senha</label>
+      <input id="senha" type="password" autocomplete="current-password">
+    </div>
+    <button class="bt" id="btEntrar" onclick="entrar()">Entrar</button>
+    <div class="erro" id="erroEntrada"></div>
+  </div>
+</div>
+
+<!-- ===================== CABECALHO ===================== -->
+<header class="topo vidro">
+  <div class="selo">
+    <img src="/img/pipi_gata_transparente.png" alt="" onerror="this.remove()">
+  </div>
+  <div class="marca"><b>Pipi IA</b></div>
+  <div class="estado">
+    <span class="ponto" id="ponto"></span>
+    <span id="txtEstado">verificando</span>
+    <button class="sair" id="btSair" onclick="sair()" style="display:none">Sair</button>
+  </div>
+</header>
+
+<!-- ===================== CORPO ===================== -->
+<div class="rolagem">
+  <div class="coluna">
+
+    <div class="abertura">
+      <img src="/img/pipi_gata_transparente.png" alt="Pipi IA" onerror="this.remove()">
+      <h1>Escreva. Ela desenha.</h1>
+      <p>Imagens em qualidade comercial, a partir de uma frase em português.</p>
+    </div>
+
+    <div id="recado"></div>
+
+    <!-- O PAINEL VEM ANTES DO CAMPO, DE PROPOSITO
+         Voce ve com o que esta desenhando e se pode usar para cliente
+         ANTES de escrever o pedido -- nao depois de a imagem sair. -->
+    <div class="painel vidro" id="painel">
+      <div class="linha">
+        <span class="rot">Onde roda</span>
+        <span class="val" id="pMotor">—</span>
+      </div>
+      <div class="linha">
+        <span class="rot">Placa</span>
+        <span class="val" id="pPlaca">—</span>
+      </div>
+      <div class="linha">
+        <span class="rot">Desenha com</span>
+        <span class="val" id="pModelo">—</span>
+      </div>
+      <div class="linha" id="linhaCredito">
+        <span class="rot">Crédito</span>
+        <span class="val" id="pCredito">—</span>
+      </div>
+      <!-- A LISTA DE QUATRO ITENS SAIU                        (17/09)
+           Ela explicava o produto na tela de quem ja comprou. Quem abre
+           pela segunda vez nao le mais nada disso -- so ocupa a altura
+           que deveria ser da imagem. As duas informacoes que realmente
+           mudam o comportamento (a placa liga sozinha, a primeira leva
+           ~1 min) viraram uma linha so. -->
+      <div class="linha">
+        <span class="rot">Automático</span>
+        <span class="val">Placa liga e desliga sozinha · 1ª imagem ~1 min</span>
+      </div>
+    </div>
+
+    <div class="cartao vidro vidro-toque">
+      <div class="et">Criar imagem</div>
+
+      <div class="campo">
+        <label for="prompt">O que você quer ver?</label>
+        <textarea id="prompt" placeholder="Um café ao amanhecer, luz quente entrando pela janela, vista de cima, fotografia"></textarea>
+        <div class="linhaVoz">
+          <button class="mic" id="btMic" onclick="alternarVoz()"
+                  title="Falar · Ctrl+Espaço" aria-label="Ditar a descrição">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="2" width="6" height="12" rx="3"/>
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/></svg></button>
+          <button class="bt fraco" id="btMelhorar" onclick="melhorar()"
+                  style="display:none;width:auto;min-height:38px;padding:0 14px;flex-shrink:0">
+            Melhorar com o Bigode</button>
+          <span class="aj" id="dicaVoz" style="margin:0">Luz, ângulo e estilo</span>
+        </div>
+
+        <!-- O PROMPT FINAL FICA VISÍVEL, E EDITÁVEL
+             Esconder o que foi enviado deixaria você dependente do
+             intermediário para sempre. Lendo o que o Bigode escreveu,
+             em duas semanas você escreve direto. -->
+        <div id="caixaFinal" style="display:none;margin-top:11px">
+          <label for="promptFinal">O pedido, do jeito que ela entende melhor
+            <span class="aj" style="display:inline">(em inglês — você pode mudar)</span></label>
+          <textarea id="promptFinal" style="min-height:92px;font-size:14px"></textarea>
+          <div class="rodaFinal">
+            <span id="contaPalavras"></span>
+            <button onclick="descartarFinal()">Usar o meu texto no lugar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="par">
+        <div class="campo">
+          <label for="formato">Formato</label>
+          <select id="formato">
+            <option value="quadrado">Quadrado · 1024×1024</option>
+            <option value="retrato">Retrato · 832×1216</option>
+            <option value="paisagem">Paisagem · 1216×832</option>
+            <option value="story">Story · 768×1344</option>
+            <option value="capa">Capa · 1344×768</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="semente">Semente</label>
+          <input id="semente" type="number" value="0" min="0">
+          <span class="aj">0 = imagem nova. Repita o número para voltar à mesma.</span>
+        </div>
+      </div>
+
+      <button class="bt" id="btCriar" onclick="gerar()">Criar imagem</button>
+
+      <!-- A marca respirando enquanto o motor trabalha. A animacao vem
+           do venure.css, a mesma que o Bigode usa ao raciocinar. -->
+      <div class="pensando-linha" id="viva" style="display:none;margin-top:13px">
+        <span class="pt-marca pensando">
+          <img src="/img/pipi_gata_transparente.png" alt="" onerror="this.remove()">
+        </span>
+        <span class="pt-txt" id="vivaTxt">Acordando a placa</span>
+        <span class="pt-seg" id="vivaSeg"></span>
+      </div>
+
+      <div class="resultado" id="resultado"></div>
+    </div>
+
+    <div class="cartao vidro">
+      <div class="et">Suas criações</div>
+      <div class="mosaico" id="mosaico"><div class="vazio">Nada ainda.</div></div>
+      <div class="barraMosaico" id="barraMosaico"></div>
+    </div>
+
+    <div class="cartao vidro">
+      <div class="et">Refazer um pedido</div>
+      <div id="historico"><div class="vazio">Nada ainda.</div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="rodape">
+  <b>VENURE</b> · <a href="https://venure.com.br" target="_blank" rel="noopener">venure.com.br</a>
+  <span class="lema">Tecnologia que muda vidas</span>
+  <!-- A NOTA DE DIREITOS, E O QUE ELA PRECISA DIZER          (17/09)
+       Duas coisas diferentes, e confundi-las custa caro num uso
+       comercial: o PROGRAMA e da Venure; as IMAGENS que saem dele sao
+       Apache 2.0, do FLUX.1-schnell -- uso comercial liberado, sem
+       royalty e sem precisar creditar ninguem.
+
+       Dizer so "© Venure" daria a entender que as imagens tambem sao,
+       e nao e verdade nem necessario. -->
+  <span class="direitos">
+    © <span id="ano">2026</span> Venure. Pipi IA é uma marca da Venure.
+    Todos os direitos reservados.<br>
+    <b>As imagens que você cria são suas</b> — uso comercial liberado, sem
+    royalties. Geradas com FLUX.1-schnell, licença Apache 2.0.
+  </span>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=t=>{const d=document.createElement('div');d.textContent=t??'';return d.innerHTML};
+const escA=t=>esc(t).replace(/"/g,'&quot;');
+let PRECO_SEG=0.000542;   // sobrescrito pelo servidor em /api/estado
+
+/* ---------- entrar ---------- */
+async function conferirLogin(){
+  let d={};
+  try{ d=await(await fetch('/api/eu')).json(); }
+  catch(e){ return true; }          // servidor mudo: o painel avisa
+  if(d.exige && !d.logado){
+    $('entrada').style.display='grid';
+    if(d.motivo) $('subEntrada').textContent=d.motivo;
+    $('email').focus();
+    return false;
+  }
+  $('entrada').style.display='none';
+  if(d.exige) $('btSair').style.display='';
+  return true;
+}
+async function entrar(){
+  const b=$('btEntrar'); b.disabled=true; $('erroEntrada').textContent='';
+  try{
+    const r=await(await fetch('/api/entrar',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:$('email').value.trim(),senha:$('senha').value})})).json();
+    if(r.ok){ $('entrada').style.display='none'; $('btSair').style.display=''; carregar(); }
+    else $('erroEntrada').textContent=r.erro||'Não consegui entrar.';
+  }catch(e){ $('erroEntrada').textContent='Falha de conexão.'; }
+  b.disabled=false;
+}
+async function sair(){
+  try{ await fetch('/api/sair',{method:'POST'}); }catch(e){}
+  location.reload();
+}
+$('senha').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()});
+
+/* ---------- o painel ----------
+   UMA ROTA SO, E A TELA NAO ADIVINHA NADA
+   Antes a tela juntava tres respostas diferentes e decidia sozinha qual
+   motor estava valendo -- e foi assim que ela chegou a dizer "sem motor"
+   com a Modal funcionando. Agora o servidor responde, e ela mostra.      */
+let desenhando=false;
+async function carregar(){
+  try{
+    const d=await(await fetch('/api/estado')).json();
+    if(d.preco_segundo) PRECO_SEG=d.preco_segundo;
+    if(d.palavras_max) PALAVRAS_MAX=d.palavras_max;
+    // O botao so aparece quando ha com o que melhorar: sem o Bigode ao
+    // lado, um botao que sempre falha e pior do que botao nenhum.
+    $('btMelhorar').style.display=d.escritor?'':'none';
+
+    $('pMotor').innerHTML=esc(d.motor||'—')+
+      (d.endereco?'<small>'+esc(d.endereco)+'</small>':'');
+    $('pPlaca').textContent=d.placa||'—';
+    $('pModelo').innerHTML=esc(d.modelo||'—')+
+      (d.licenca?'<span class="selo-lic">'+esc(d.licenca)+'</span>':'');
+
+    /* Credito: gasto do ciclo sobre o teto de $30. Se a consulta falhar,
+       o painel diz que falhou -- nao inventa um numero. */
+    const c=d.credito||{};
+    if(c.erro){
+      $('pCredito').innerHTML='<small>não consegui consultar: '+esc(c.erro)+'</small>';
+    }else{
+      const pct=Math.min(100,Math.round((c.gasto/c.teto)*100));
+      const apertado=pct>=80;
+      $('pCredito').innerHTML=
+        'US$ '+c.restante.toFixed(2)+' de '+c.teto.toFixed(2)+
+        '<small>gasto US$ '+c.gasto.toFixed(2)+' neste ciclo · '+
+        'cada imagem custa cerca de US$ '+(PRECO_SEG*5).toFixed(3)+'</small>'+
+        '<span class="barra'+(apertado?' apertado':'')+'"><i style="width:'+pct+'%"></i></span>';
+    }
+
+    if(!desenhando){
+      $('ponto').className='ponto'+(d.pronto?' ok':' ruim');
+      $('txtEstado').textContent=d.pronto?'conectado':'sem motor';
+    }
+
+    /* O recado so aparece quando ha o que dizer. Barra amarela permanente
+       vira paisagem, e ai ninguem le quando importa. */
+    if(!d.pronto){
+      $('recado').innerHTML='<div class="recado vidro"><b>A Modal não está configurada</b>'+
+        esc(d.motivo||'')+'<br>Na pasta da Pipi, rode <code>python usar_modal.py</code>, '+
+        'cole o endereço e o token, e abra esta tela de novo.</div>';
+    }else if(d.credito&&!d.credito.erro&&d.credito.restante<=0){
+      $('recado').innerHTML='<div class="recado vidro"><b>O crédito do mês acabou</b>'+
+        'A Modal para de responder até o ciclo virar. Não há motor de reserva: '+
+        'a Pipi trabalha só com ela. Veja em '+
+        '<a href="https://modal.com/settings/usage" target="_blank" rel="noopener">modal.com</a>.</div>';
+    }else $('recado').innerHTML='';
+  }catch(e){
+    if(!desenhando){
+      $('ponto').className='ponto ruim';
+      $('txtEstado').textContent='servidor fora do ar';
+    }
+  }
+}
+
+/* ---------- gerar ---------- */
+let relogio=null;
+function viva(ligar,txt){
+  $('viva').style.display=ligar?'':'none';
+  if(txt) $('vivaTxt').textContent=txt;
+  if(!ligar){ clearInterval(relogio); relogio=null; $('vivaSeg').textContent=''; return; }
+  if(!relogio){
+    const t0=Date.now();
+    relogio=setInterval(()=>{
+      const s=Math.round((Date.now()-t0)/1000);
+      $('vivaSeg').textContent=s>2?s+'s':'';
+    },500);
+  }
+}
+
+async function gerar(){
+  /* O QUE VAI PARA O FLUX E O QUE ESTA NA CAIXA FINAL, SE HOUVER
+     Assim o que voce leu e exatamente o que foi desenhado -- e se voce
+     corrigiu uma palavra, a correcao vale. */
+  const final=$('promptFinal').value.trim();
+  const meu=$('prompt').value.trim();
+  const prompt=final||meu;
+  if(!prompt){ viva(true,'Escreva uma descrição antes.'); setTimeout(()=>viva(false),2200); return; }
+
+  const b=$('btCriar'); b.disabled=true; $('resultado').innerHTML='';
+  desenhando=true;
+  $('ponto').className='ponto trabalhando';
+  $('txtEstado').textContent='desenhando';
+  viva(true,'Acordando a placa');
+
+  try{
+    const r=await(await fetch('/api/imagens/job',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({descricao:prompt,formato:$('formato').value,
+        semente:+$('semente').value||0})})).json();
+
+    if(!r.job_id){
+      viva(false);
+      $('resultado').innerHTML='<div class="ruim">'+esc(r.erro||'Não consegui iniciar.')+'</div>';
+      return;
+    }
+
+    for(let i=0;i<240;i++){
+      await new Promise(x=>setTimeout(x,2000));
+      const j=await(await fetch('/api/imagens/job/'+encodeURIComponent(r.job_id))).json();
+
+      if(j.estado==='concluido'){
+        viva(false);
+        const u=String(j.resultado||'');
+        let ficha='';
+        if(j.segundos!=null){
+          const custo=(j.custo_usd!=null)?j.custo_usd:(j.segundos*PRECO_SEG);
+          /* A CONTAGEM QUE VALE VEM DA MODAL                    (18/09)
+
+             O contador de cima é estimativa: palavras × 1,4. Este aqui é
+             o T5 contando de verdade, no mesmo contêiner que desenhou.
+
+             Isso existe porque o corte de 256 tokens é SILENCIOSO: o
+             prompt entra inteiro, o fim some, e a imagem sai sem aquilo
+             que você pediu no final — sem erro, sem aviso, sem nada. A
+             única defesa é ver o número depois de cada imagem.
+
+             Passei a semana estimando esse limite por palavra, e errei:
+             o arquivo dizia que 180 palavras cabiam "com folga" e elas
+             não cabiam. Quem tinha a resposta exata era o T5, carregado,
+             a uma chamada de distância. */
+          let tok='';
+          if(j.tokens!=null){
+            const teto=j.teto_tokens||256;
+            tok='<span'+(j.cortou?' class="ruim"':'')+'>'+
+                j.tokens+' de '+teto+' tokens'+
+                (j.cortou?' — O FIM DO PROMPT FOI CORTADO':'')+'</span>';
+          }
+          ficha='<div class="ficha"><span>'+esc(String(j.segundos))+'s na placa</span>'+
+                '<span>≈ US$ '+custo.toFixed(4)+'</span>'+tok+
+                '<span>salva em producao\\'+esc(j.nome||'')+'</span></div>';
+        }
+        $('resultado').innerHTML='<img src="'+escA(u)+'" alt="Imagem criada">'+ficha;
+        registrar(meu||prompt, prompt, +$('semente').value||0);
+        carregarMosaico();
+        break;
+      }
+      if(j.estado==='erro'){
+        viva(false);
+        $('resultado').innerHTML='<div class="ruim">'+esc(j.erro||'Sem resposta')+'</div>';
+        break;
+      }
+      /* O estado vem do servidor, em portugues, e vira a legenda da marca
+         respirando. Melhor do que "trabalhando" para tudo. */
+      viva(true,esc(j.estado||'desenhando').replace(/&amp;/g,'&'));
+    }
+  }catch(e){
+    viva(false);
+    $('resultado').innerHTML='<div class="ruim">Falha de conexão: '+esc(String(e))+'</div>';
+  }
+
+  desenhando=false;
+  b.disabled=false;
+  carregar();
+}
+
+/* ---------- historico desta sessao ---------- */
+/* GUARDA A IDEIA, O PROMPT FINAL E A SEMENTE               (17/09)
+   Guardar so a frase deixava cada imagem boa impossivel de repetir: sem
+   a semente nao se volta nela, e sem o prompt em ingles nao se sabe o
+   que funcionou. Clicar num item recarrega os tres. */
+function pintarHistorico(h){
+  $('historico').innerHTML=h.length
+    ? h.map((x,i)=>'<div class="item" style="cursor:pointer" '+
+        'onclick="reusar('+i+')" title="Usar de novo">'+
+        '<b>'+esc(x.quando)+(x.semente?' · semente '+x.semente:'')+'</b>'+
+        '<span>'+esc(x.ideia||x.prompt||'')+'</span></div>').join('')
+    : '<div class="vazio">Nada ainda.</div>';
+}
+function lerHistorico(){
+  try{ return JSON.parse(localStorage.getItem('pipi_historico')||'[]'); }
+  catch(e){ return []; }
+}
+function registrar(ideia,final,semente){
+  const h=lerHistorico();
+  h.unshift({ideia,final,semente,quando:new Date().toLocaleString('pt-BR')});
+  try{ localStorage.setItem('pipi_historico',JSON.stringify(h.slice(0,30))); }catch(e){}
+  pintarHistorico(lerHistorico());
+}
+function reusar(i){
+  const x=lerHistorico()[i]; if(!x) return;
+  $('prompt').value=x.ideia||'';
+  if(x.final&&x.final!==x.ideia){
+    $('promptFinal').value=x.final;
+    $('caixaFinal').style.display='';
+    contarPalavras();
+  }else descartarFinal();
+  // A semente volta junto: e com ela que se refina uma imagem em vez de
+  // sortear outra. Some 1 para variar pouco; mantenha para repetir.
+  $('semente').value=x.semente||0;
+  $('prompt').scrollIntoView({behavior:'smooth',block:'center'});
+  $('dicaVoz').textContent='Recarregado. Mantenha a semente para repetir, '+
+    'ou mude uma palavra e crie de novo.';
+}
+pintarHistorico(lerHistorico());
+
+/* ---------- o Bigode escrevendo o prompt ----------
+   NADA DE PROMPT INVISÍVEL                                (17/09)
+
+   Seria mais curto mandar a ideia e desenhar direto. Mas aí você nunca
+   veria o que foi realmente pedido ao FLUX -- e ficaria dependente do
+   intermediário para sempre, sem aprender.
+
+   Então o prompt volta para a tela, editável, e você decide.            */
+let PALAVRAS_MAX=120;
+/* A contagem de palavras aqui e uma PREVIA, nao a verdade. O teto real e
+   de 256 tokens do T5, e token nao e palavra: "f/1.8" e "bioluminescence"
+   viram dois ou tres cada. Por isso o fator 1,4 -- medido como a media de
+   prosa de fotografia em ingles, que e o que este campo produz.
+
+   O numero exato so existe do lado da Modal, onde o T5 esta carregado.
+   Ele volta junto com a imagem e aparece embaixo dela. Aqui e so para
+   voce ver de relance se esta perto do limite enquanto edita.           */
+const TOKENS_MAX=256, TOKENS_POR_PALAVRA=1.4;
+
+async function melhorar(){
+  const ideia=$('prompt').value.trim();
+  if(!ideia){ $('prompt').focus(); return; }
+  const b=$('btMelhorar'); const antes=b.textContent;
+  b.disabled=true; b.textContent='Escrevendo…';
+  try{
+    const r=await(await fetch('/api/prompt',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ideia,formato:$('formato').value})})).json();
+    if(r.ok&&r.prompt){
+      $('promptFinal').value=r.prompt;
+      $('caixaFinal').style.display='';
+      contarPalavras();
+      $('dicaVoz').textContent='Escrito por '+(r.modelo||'o Bigode')+
+        '. Leia, corrija se quiser, e crie.';
+    }else{
+      // O motivo vem do servidor e e mostrado como esta: quase sempre e
+      // "o Bigode nao esta aberto", que se resolve abrindo o Bigode.
+      $('dicaVoz').textContent='Não consegui melhorar: '+(r.erro||'sem motivo');
+    }
+  }catch(e){ $('dicaVoz').textContent='Falha de conexão com o servidor da Pipi.'; }
+  b.disabled=false; b.textContent=antes;
+}
+
+function descartarFinal(){
+  $('promptFinal').value='';
+  $('caixaFinal').style.display='none';
+  $('dicaVoz').textContent='Usando o seu texto. Escreva solto, em português.';
+}
+
+/* O TETO DE 256 TOKENS NAO PODE SER SURPRESA
+   O T5 corta o excesso EM SILENCIO -- a imagem sai sem o que voce
+   escreveu no fim e nada avisa. Aqui o contador avisa antes.            */
+function contarPalavras(){
+  const t=$('promptFinal').value.trim();
+  const n=t?t.split(/\s+/).length:0;
+  const tk=Math.round(n*TOKENS_POR_PALAVRA);
+  const e=$('contaPalavras');
+  e.className=tk>TOKENS_MAX?'estourou':(tk>TOKENS_MAX*0.85?'apertado':'');
+  e.textContent=n+' palavras · ~'+tk+' de '+TOKENS_MAX+' tokens'+
+    (tk>TOKENS_MAX?' — o FLUX vai cortar o fim':'');
+}
+$('promptFinal').addEventListener('input',contarPalavras);
+
+/* ---------- voz ----------
+   A CAPTACAO MORA NO /voz.js, COMPARTILHADO COM O BIGODE   (17/09)
+
+   Estava escrita aqui inteira -- medicao de volume, montagem do WAV,
+   reamostragem -- e quase igual no index.html do Bigode. Duas copias da
+   mesma coisa: o conserto de uma nunca chegava na outra.
+
+   Agora e um arquivo so, servido pelos dois. E ele ganhou o que faltava
+   nas duas telas:
+     . para sozinho 1,3s depois de voce calar (nao precisa clicar em Parar)
+     . barrinhas mexendo com a sua voz
+     . avisa quando nao ouviu nada, em vez de mandar silencio ao Whisper
+
+   A escada continua a mesma: Whisper primeiro (encaminhado ao Bigode pelo
+   /api/transcrever), ditado do Chrome como reserva. Voz que "as vezes nao
+   tem" e voz que ninguem usa.                                          */
+let reconhecedor=null;
+
+if(window.Voz){
+  Voz.ligar({
+    campo: ()=>$('prompt'),
+    botao: $('btMic'),
+    faixa: ()=>$('btMic').closest('.campo'),
+    enviar: wav => fetch('/api/transcrever',{method:'POST',
+      headers:{'Content-Type':'audio/wav'},body:wav}).then(r=>r.json())
+      .catch(()=>({ok:false})),
+  });
+}
+
+function alternarVoz(){
+  if(reconhecedor){ try{ reconhecedor.stop(); }catch(e){} return; }
+  if(window.Voz) return Voz.alternar();
+  ouvirNavegador(false);
+}
+
+/* Aviso curto para o caminho de reserva (ditado do Chrome). O aviso do
+   caminho principal e desenhado pelo voz.js, com as barrinhas. */
+function faixaOuvindo(mostrar,txt){
+  let e=$('faixaOuvindo');
+  if(!mostrar){ if(e) e.remove(); return; }
+  if(!e){ e=document.createElement('div'); e.id='faixaOuvindo'; e.className='ouvindo';
+    $('btMic').closest('.campo').appendChild(e); }
+  e.innerHTML='<span class="onda"><i></i><i></i><i></i><i></i></span>'+
+    '<span>'+esc(txt)+'</span>'+
+    '<button class="tag" style="margin-left:auto;color:var(--ac2)" '+
+    'onclick="alternarVoz()">Parar</button>';
+}
+
+/* Aqui viviam comecarVoz, pararVoz, juntar, reamostrar e montarWav --
+   umas 90 linhas, quase identicas as do Bigode. Tudo isso agora esta no
+   /voz.js, servido pelos dois. Foi a ultima copia que sobrava.        */
+
+function ouvirNavegador(avisar){
+  const R=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!R){ faixaOuvindo(true,'Este navegador não aceita ditado, e o Bigode não está aberto.');
+    setTimeout(()=>faixaOuvindo(false),3600); return; }
+  reconhecedor=new R(); reconhecedor.lang='pt-BR';
+  reconhecedor.continuous=true; reconhecedor.interimResults=true;
+  const base=$('prompt').value?$('prompt').value.trim()+' ':''; let firme='';
+  reconhecedor.onresult=ev=>{ let parcial='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const t=ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) firme+=t+' '; else parcial+=t; }
+    const c=$('prompt'); c.value=base+firme+parcial;
+    c.dispatchEvent(new Event('input')); };
+  reconhecedor.onerror=()=>{ faixaOuvindo(true,'Não consegui ouvir. O microfone está ligado?');
+    setTimeout(()=>faixaOuvindo(false),3000); };
+  reconhecedor.onend=()=>{ reconhecedor=null;
+    $('btMic').classList.remove('gravando'); faixaOuvindo(false); $('prompt').focus(); };
+  $('btMic').classList.add('gravando');
+  faixaOuvindo(true,(avisar?'O Bigode não está aberto — usando o ditado do Chrome. ':'')+
+                    'Ouvindo… fale e clique em Parar.');
+  reconhecedor.start();
+}
+
+/* Ctrl+Espaco. Quando o voz.js carrega, quem amarra a tecla e ele -- se eu
+   amarrasse aqui tambem, um toque ligaria e desligaria na mesma hora.   */
+if(!window.Voz){
+  document.addEventListener('keydown',ev=>{
+    if(ev.ctrlKey&&ev.code==='Space'){ ev.preventDefault(); alternarVoz(); }
+  });
+}
+
+/* ---------- mosaico das criações ---------- */
+async function carregarMosaico(){
+  let d={};
+  try{ d=await(await fetch('/api/galeria')).json(); }catch(e){ return; }
+  const itens=d.imagens||[];
+  if(!itens.length){
+    $('mosaico').innerHTML='<div class="vazio">Nada ainda. A primeira imagem aparece aqui.</div>';
+    $('barraMosaico').innerHTML=d.drive
+      ? '<a href="'+escA(d.drive)+'" target="_blank" rel="noopener">Abrir a pasta no Google Drive</a>'
+      : '';
+    return;
+  }
+  $('mosaico').innerHTML=itens.map(x=>
+    '<div class="tijolo">'+
+      '<img src="'+escA(x.url)+'" alt="'+escA(x.nome)+'" loading="lazy">'+
+      '<button class="lupa" onclick="ampliar(\''+escA(x.url)+'\')" '+
+        'aria-label="Ver maior"></button>'+
+      '<button class="apagar" onclick="apagar(\''+escA(x.nome)+'\')" '+
+        'title="Excluir esta imagem" aria-label="Excluir">&times;</button>'+
+      '<span class="quando">'+esc(x.quando)+'</span>'+
+    '</div>').join('');
+  /* A PASTA JA E O GOOGLE DRIVE                            (17/09)
+     A producao/ fica dentro de G:\Meu Drive -- ou seja, o mosaico ja e o
+     espelho da pasta do Drive, sem nenhuma sincronia extra: o Drive faz
+     o upload sozinho e a pagina le o arquivo local, que e instantaneo.
+
+     O link aqui embaixo abre a MESMA pasta no Drive, para compartilhar
+     com cliente. Ele so aparece se houver um endereco configurado --
+     link quebrado num produto e pior do que link nenhum. */
+  $('barraMosaico').innerHTML=
+    '<span>'+itens.length+' imagem'+(itens.length>1?'ns':'')+
+      ' · '+esc(d.tamanho||'')+'</span>'+
+    (d.drive ? '<a href="'+escA(d.drive)+'" target="_blank" rel="noopener">'+
+               'Abrir a pasta no Google Drive</a>' : '')+
+    '<span style="margin-left:auto"></span>'+
+    '<button onclick="carregarMosaico()">Atualizar</button>';
+}
+
+function ampliar(url){
+  const v=document.createElement('div');
+  v.className='lupaVeu';
+  v.innerHTML='<img src="'+escA(url)+'" alt="">';
+  v.onclick=()=>v.remove();
+  document.body.appendChild(v);
+}
+
+/* APAGAR PEDE CONFIRMACAO, E NAO TEM VOLTA               (17/09)
+   O arquivo sai do disco. Nao ha lixeira aqui -- entao a pergunta e a
+   unica chance de voce mudar de ideia. */
+async function apagar(nome){
+  if(!confirm('Excluir "'+nome+'" definitivamente?\n\nO arquivo sai da pasta producao e não há como desfazer.')) return;
+  try{
+    const r=await(await fetch('/api/apagar',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({nome})})).json();
+    if(!r.ok) alert(r.erro||'Não consegui excluir.');
+  }catch(e){ alert('Falha de conexão.'); }
+  carregarMosaico();
+}
+
+/* ---------- partida ---------- */
+// O ano do copyright vem do relogio, nao do codigo: em 1 de janeiro um
+// numero escrito a mao fica velho e ninguem lembra de trocar.
+$('ano').textContent=new Date().getFullYear();
+conferirLogin().then(ok=>{ if(ok){ carregar(); carregarMosaico(); } });
+setInterval(()=>{ if($('entrada').style.display==='none') carregar(); },20000);
+</script>
+</body>
+</html>
