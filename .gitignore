@@ -59,3 +59,6 @@ Thumbs.db
 # Reserva gratuita da Pipi (29/09): guarda o token da Cloudflare
 cloudflare.json
 .git-antigo*/
+
+# Garantido pelo PUBLICAR_NO_GITHUB.ps1 (29/09)
+*.bak
