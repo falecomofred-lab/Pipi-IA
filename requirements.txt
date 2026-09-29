@@ -11,3 +11,6 @@
 
 # Publicar e falar com a Modal.
 modal>=1.5
+
+# Opcional (29/09): corta a imagem da Cloudflare para retrato/paisagem/story/capa
+Pillow

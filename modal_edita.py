@@ -89,22 +89,97 @@ PRECO_SEG = {"L40S": 0.000542, "A100-40GB": 0.000583, "A100-80GB": 0.000694,
 CACHE = "/cache"
 volume = modal.Volume.from_name("pipi-edita-modelos", create_if_missing=True)
 
+def _baixar():
+    """Traz os ~41 GB para o Volume DURANTE a construcao da imagem.
+
+    SEM ISTO, O DOWNLOAD ACONTECIA NO PRIMEIRO PEDIDO          (22/09)
+
+        O `from_pretrained` do `carregar()` baixa o que falta. Como nao
+        havia nenhum passo de download na construcao, esses 41 GB viriam
+        no primeiro `editar` -- com a L40S ja ligada e contando $0,000542
+        por segundo, esperando rede.
+
+        Nao e so caro: e o tipo de espera que estoura o tempo do primeiro
+        pedido, falha, e faz a pessoa tentar de novo -- pagando o
+        aquecimento outra vez sem nunca chegar ao fim.
+
+        Aqui acontece uma vez, no `modal deploy`, com voce olhando, e sem
+        placa reservada.
+
+    Funcao com nome, no topo do arquivo, e nao lambda:
+        InvalidError: Image.run_function does not support lambda functions.
+    """
+    from huggingface_hub import snapshot_download
+
+    snapshot_download(repo_id=MODELO, cache_dir=CACHE,
+                      # Os .bin sao a versao antiga dos mesmos pesos que os
+                      # .safetensors. Sem este filtro, o download dobra.
+                      ignore_patterns=["*.bin", "*.pth", "*.msgpack"])
+
+
 imagem = (
     modal.Image.debian_slim(python_version="3.12")
     .pip_install(
-        "torch==2.5.1",
-        # O QwenImageEditPipeline e recente: versao antiga do diffusers
-        # nao conhece a classe e o deploy falha no import, nao no uso.
-        "diffusers==0.35.1",
-        "transformers==4.51.3",
-        "accelerate==1.3.0",
+        # SEM PINO NESTES QUATRO, E ESTA E A EXCECAO DA CASA     (22/09)
+        #
+        #   A regra do projeto e prender versao (a licao do faster-whisper).
+        #   Aqui ela nao serve, e o motivo esta no proprio model card do
+        #   Qwen-Image-Edit, conferido hoje:
+        #
+        #       "Install the latest version of diffusers
+        #        pip install git+https://github.com/huggingface/diffusers"
+        #
+        #   O modelo e novo e usa o Qwen2.5-VL como text encoder. Com
+        #   transformers 4.51.3 + diffusers 0.35.1 o carregamento morria em:
+        #
+        #       AttributeError: 'dict' object has no attribute 'to_dict'
+        #
+        #   -- que e transformers velho recebendo uma config aninhada que
+        #   ele nao sabe montar. Prender numeros aqui e escolher uma
+        #   combinacao no escuro e pagar 20 minutos de build por tentativa;
+        #   ja paguei duas.
+        #
+        #   Entao: pip resolve. E, para isso nao virar um misterio no dia em
+        #   que quebrar, o `carregar()` abaixo DEVOLVE as versoes que
+        #   entraram -- a medicao vem junto com o erro, nao depois dele.
+        "torch",
+        # O torchvision NAO vem junto com o torch, e o transformers
+        # precisa dele so para EXISTIR o AutoVideoProcessor -- que este
+        # modelo nem usa, mas que e carregado no import da familia Qwen2.5-VL:
+        #
+        #     ImportError: AutoVideoProcessor requires the Torchvision
+        #     library but it was not found in your environment.
+        #
+        # Esta linha existe no modal_olho.py desde o primeiro dia. Aqui eu
+        # simplesmente nao a escrevi.
+        "torchvision",
+        "diffusers",
+        "transformers",
+        "accelerate",
         "sentencepiece==0.2.0",
         "protobuf==5.29.3",
-        "huggingface_hub[hf_transfer]==0.28.1",
+        # FAIXA, E NAO NUMERO EXATO — E POR QUE                  (22/09)
+        #
+        #   Estava `==0.28.1`, copiado do modal_voz.py e do modal_olho.py.
+        #   La funciona; aqui nao, e o pip disse por que:
+        #
+        #       diffusers 0.35.1 depends on huggingface-hub>=0.34.0
+        #       The user requested huggingface_hub==0.28.1
+        #
+        #   Dois pinos que nao podem coexistir. Copiei a versao sem olhar
+        #   o que mais estava na lista -- o diffusers nao existe naqueles
+        #   arquivos.
+        #
+        #   O pino exato continua sendo a regra da casa (a licao do
+        #   faster-whisper), mas aqui ele precisa CABER: a faixa prende o
+        #   que importa de verdade, que e nao saltar para a major 1.x, e
+        #   deixa o pip achar um numero que sirva aos tres pacotes.
+        "huggingface_hub[hf_transfer]>=0.34.0,<1.0",
         "fastapi[standard]==0.115.8",
         "Pillow==11.1.0",
     )
     .env({"HF_HUB_ENABLE_HF_TRANSFER": "1", "HF_HOME": CACHE})
+    .run_function(_baixar, volumes={CACHE: volume}, timeout=60 * 60)
 )
 
 app = modal.App(APP, image=imagem)
@@ -118,6 +193,11 @@ app = modal.App(APP, image=imagem)
     # Editar e conversa: voce olha o resultado, muda a instrucao e pede de
     # novo. Cinco minutos cobrem a rajada -- a licao dos 40 segundos.
     scaledown_window=300,
+    # UMA PLACA, NUNCA DUAS                                    (22/09)
+    #   Sem este teto, dois pedidos ao mesmo tempo -- duas abas abertas,
+    #   ou um clique duplo -- sobem DUAS L40S. Sao ~US$ 3,90 por hora, e
+    #   voce so descobriria na fatura. Editar e coisa de um de cada vez.
+    max_containers=1,
 )
 class Editor:
 
@@ -140,9 +220,32 @@ class Editor:
             self.pipe.enable_model_cpu_offload()
         except Exception as e:
             texto = "%s: %s" % (type(e).__name__, e)
-            self.erro = "Nao consegui carregar o %s. %s" % (MODELO, texto[:400])
+            # AS VERSOES VAO JUNTO COM O ERRO                    (22/09)
+            #
+            #   Sem isto, "'dict' object has no attribute 'to_dict'" e um
+            #   enigma: nao da para saber com que combinacao de bibliotecas
+            #   ele aconteceu, e o conserto vira tentativa e erro de 20
+            #   minutos cada. Com as versoes na mao, o proximo passo e uma
+            #   decisao, nao um palpite.
+            self.erro = "Nao consegui carregar o %s. %s | %s" % (
+                MODELO, texto[:350], self._versoes())
 
-    @modal.fastapi_endpoint(method="POST", docs=True)
+    @staticmethod
+    def _versoes():
+        """As versoes realmente instaladas, para ir junto de qualquer erro."""
+        saida = []
+        for nome in ("torch", "diffusers", "transformers", "accelerate"):
+            try:
+                mod = __import__(nome)
+                saida.append("%s=%s" % (nome, getattr(mod, "__version__", "?")))
+            except Exception as e:
+                saida.append("%s=NAO IMPORTA (%s)" % (nome, type(e).__name__))
+        return " ".join(saida)
+
+    # docs=False: com True, a Modal publica uma pagina de documentacao
+    # aberta no mesmo endereco, dizendo o formato exato do pedido. O
+    # endereco e publico e o credito e seu -- nao ha motivo para facilitar.
+    @modal.fastapi_endpoint(method="POST", docs=False)
     def editar(self, dados: dict):
         import torch
         from PIL import Image

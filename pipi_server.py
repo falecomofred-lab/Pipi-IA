@@ -228,11 +228,10 @@ def _consultar_gasto():
     return float(json.loads(saida.stdout.strip().splitlines()[-1]))
 
 
-def gasto_do_ciclo():
-    with _LOCK_GASTO:
-        idade = time.time() - _CACHE_GASTO['quando']
-        if _CACHE_GASTO['quando'] and idade < 600:
-            return dict(_CACHE_GASTO)
+_GASTO_RODANDO = {'sim': False}
+
+
+def _atualizar_gasto():
     try:
         valor = _consultar_gasto()
         novo = {'quando': time.time(), 'valor': valor, 'erro': ''}
@@ -241,14 +240,35 @@ def gasto_do_ciclo():
                 'erro': str(exc)[:200] or 'nao consegui consultar'}
     with _LOCK_GASTO:
         _CACHE_GASTO.update(novo)
-    return dict(novo)
+        _GASTO_RODANDO['sim'] = False
+
+
+def gasto_do_ciclo():
+    """O gasto do mes, SEM segurar a tela.                        (29/09)
+
+    A consulta a Modal roda num subprocesso que pode levar ate 60 s (com a
+    conta parada, leva). Antes a tela ficava esperando e o navegador
+    desistia -- no console aparecia ConnectionAbortedError [WinError 10053].
+    Agora devolve o ultimo valor guardado na hora e atualiza em segundo
+    plano.
+    """
+    with _LOCK_GASTO:
+        idade = time.time() - _CACHE_GASTO['quando']
+        velho = not _CACHE_GASTO['quando'] or idade >= 600
+        if velho and not _GASTO_RODANDO['sim']:
+            _GASTO_RODANDO['sim'] = True
+            threading.Thread(target=_atualizar_gasto, daemon=True).start()
+        atual = dict(_CACHE_GASTO)
+    if not atual['quando']:
+        atual['erro'] = 'consultando o gasto na Modal...'
+    return atual
 
 
 def painel():
     """Tudo o que a tela precisa saber sobre o motor, numa resposta."""
     st = modal_cliente.status()
     g = gasto_do_ciclo()
-    pronto = bool(st.get('configurado'))
+    pronto = bool(st.get('configurado')) or _cloudflare_pronta()
     dados = {
         'ok': True,
         'pronto': pronto,
@@ -269,6 +289,8 @@ def painel():
         # 120 cabe de verdade. O numero exato de cada imagem vem medido da
         # Modal e aparece embaixo dela.
         'palavras_max': 120,
+        # Reserva gratuita (29/09): mesmo FLUX.1-schnell na Cloudflare.
+        'reserva': 'Cloudflare Workers AI' if _cloudflare_pronta() else '',
     }
     if not pronto:
         dados['motivo'] = (st.get('erro')
@@ -288,14 +310,50 @@ def painel():
 # ----------------------------------------------------------------------
 # O PEDIDO
 # ----------------------------------------------------------------------
+# RESERVA GRATUITA: CLOUDFLARE                               (29/09)
+#   Se a Modal nao desenhar (conta parada, sem credito, fora do ar), o
+#   mesmo FLUX.1-schnell roda na Cloudflare Workers AI, de graca ate ~170
+#   imagens por dia. Ver cloudflare_cliente.py.
+try:
+    import cloudflare_cliente
+except Exception:
+    cloudflare_cliente = None
+
+
+def _cloudflare_pronta():
+    try:
+        return bool(cloudflare_cliente and cloudflare_cliente.configurado())
+    except Exception:
+        return False
+
+
 def _desenhar(jid, prompt, payload):
     destino = OUT / (jid + '.png')
-    caminho, segundos, licenca, extra = modal_cliente.gerar(
-        prompt,
-        formato=payload.get('formato') or 'quadrado',
-        passos=payload.get('passos') or 4,
-        semente=payload.get('semente') or 0,
-        destino=destino)
+    args = dict(formato=payload.get('formato') or 'quadrado',
+                passos=payload.get('passos') or 4,
+                semente=payload.get('semente') or 0,
+                destino=destino)
+    falha_modal = ''
+    if modal_cliente.configurado():
+        try:
+            caminho, segundos, licenca, extra = modal_cliente.gerar(prompt, **args)
+            extra = dict(extra or {})
+            extra.setdefault('motor', 'Modal')
+            return caminho, segundos, licenca, extra
+        except Exception as exc:
+            falha_modal = str(exc)[:200]
+            if not _cloudflare_pronta():
+                raise
+    if not _cloudflare_pronta():
+        raise RuntimeError(
+            'Nenhum motor configurado. Modal: python usar_modal.py | '
+            'Cloudflare: preencha o cloudflare.json')
+    with LOCK:
+        JOBS[jid]['estado'] = 'desenhando na Cloudflare (reserva gratis)'
+    caminho, segundos, licenca, extra = cloudflare_cliente.gerar(prompt, **args)
+    extra = dict(extra or {})
+    if falha_modal:
+        extra['aviso'] = 'A Modal nao desenhou (%s). Usei a Cloudflare.' % falha_modal
     return caminho, segundos, licenca, extra
 
 
@@ -303,10 +361,10 @@ def run(jid, prompt, payload):
     with LOCK:
         JOBS[jid]['estado'] = 'acordando a placa'
     try:
-        if not modal_cliente.configurado():
+        if not modal_cliente.configurado() and not _cloudflare_pronta():
             raise RuntimeError(
                 'A Modal nao esta configurada. Na pasta da Pipi, rode: '
-                'python usar_modal.py')
+                'python usar_modal.py (ou preencha o cloudflare.json)')
 
         caminho, segundos, licenca, extra = _desenhar(jid, prompt, payload)
 
@@ -323,6 +381,8 @@ def run(jid, prompt, payload):
             custo = round(float(segundos) * PRECO_SEG, 4)
         except Exception:
             pass
+        if (extra or {}).get('custo_usd') is not None:
+            custo = extra['custo_usd']          # Cloudflare: cota gratis
 
         with LOCK:
             JOBS[jid].update(estado='concluido',
@@ -333,7 +393,9 @@ def run(jid, prompt, payload):
                              # Medicao do T5 na Modal, nao estimativa daqui.
                              tokens=(extra or {}).get('tokens'),
                              teto_tokens=(extra or {}).get('teto_tokens', 256),
-                             cortou=bool((extra or {}).get('cortou')))
+                             cortou=bool((extra or {}).get('cortou')),
+                             motor=(extra or {}).get('motor', 'Modal'),
+                             aviso=(extra or {}).get('aviso', ''))
     except Exception as exc:
         with LOCK:
             JOBS[jid].update(estado='erro', erro=str(exc))
@@ -546,11 +608,14 @@ def enviar_arquivo(h, caminho):
 
 def send_json(h, status, data):
     raw = json.dumps(data, ensure_ascii=False).encode()
-    h.send_response(status)
-    h.send_header('Content-Type', 'application/json; charset=utf-8')
-    h.send_header('Content-Length', str(len(raw)))
-    h.end_headers()
-    h.wfile.write(raw)
+    try:
+        h.send_response(status)
+        h.send_header('Content-Type', 'application/json; charset=utf-8')
+        h.send_header('Content-Length', str(len(raw)))
+        h.end_headers()
+        h.wfile.write(raw)
+    except (ConnectionError, OSError):
+        pass      # o navegador fechou antes (WinError 10053): nada a fazer
 
 
 def send_json_cookie(h, status, data, cookie):

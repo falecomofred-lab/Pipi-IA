@@ -54,7 +54,11 @@ rem
 rem   Faltar configuracao NAO impede a Pipi de abrir: a tela explica o que
 rem   fazer melhor do que uma janela preta que fecha.
 rem ---------------------------------------------------------------------
-"%PY%" -c "import sys; sys.path.insert(0, r'%ROOT%'); import modal_cliente; sys.exit(0 if modal_cliente.configurado() else 1)" >nul 2>&1
+rem 29/09: era r'%ROOT%' -- o ROOT termina em "\" e r'...\' nao fecha a
+rem string no Python. A conferencia dava erro SEMPRE e o aviso "Modal nao
+rem configurada" aparecia mesmo com a Modal configurada. O "." no fim resolve.
+rem Agora a reserva gratis (Cloudflare) tambem conta como motor configurado.
+"%PY%" -c "import sys; sys.path.insert(0, r'%ROOT%.'); import modal_cliente, cloudflare_cliente; sys.exit(0 if (modal_cliente.configurado() or cloudflare_cliente.configurado()) else 1)" >nul 2>&1
 if errorlevel 1 (
   echo [AVISO] A Modal ainda nao esta configurada.
   echo.
@@ -64,10 +68,12 @@ if errorlevel 1 (
   echo         Vou abrir a tela mesmo assim -- ela mostra o mesmo recado.
   echo.
 ) else (
-  echo Motor: Modal, endereco fixo na nuvem.
+  echo Motor: Modal, com reserva gratis na Cloudflare se estiver configurada.
   echo.
 )
 
+echo DEIXE ESTA JANELA ABERTA. Ctrl+C aqui FECHA a Pipi (nao use para copiar).
+echo.
 echo Abrindo em http://127.0.0.1:%PIPI_PORT% ...
 start "" "http://127.0.0.1:%PIPI_PORT%"
 "%PY%" "%ROOT%pipi_server.py"

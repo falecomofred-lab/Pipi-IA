@@ -55,3 +55,7 @@ _quarentena-*/
 desktop.ini
 Thumbs.db
 .DS_Store
+
+# Reserva gratuita da Pipi (29/09): guarda o token da Cloudflare
+cloudflare.json
+.git-antigo*/
